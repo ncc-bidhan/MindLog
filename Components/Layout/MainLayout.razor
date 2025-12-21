@@ -1,0 +1,69 @@
+@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+@inject ToastService ToastService
+
+@if (ShouldShowSidebar)
+{
+    <div class="page">
+        <div class="sidebar">
+            <NavMenu />
+        </div>
+
+        <main>
+            <article class="content px-4">
+                @Body
+            </article>
+        </main>
+    </div>
+}
+else
+{
+    <div class="page-no-sidebar">
+        @Body
+    </div>
+}
+
+<ToastNotification Show="@showToast" Type="@toastType" Title="@toastTitle" Message="@toastMessage" />
+
+@code {
+    private bool ShouldShowSidebar = true;
+
+    private bool showToast = false;
+    private string toastType = "";
+    private string toastTitle = "";
+    private string toastMessage = "";
+
+    protected override void OnInitialized()
+    {
+        NavigationManager.LocationChanged += OnLocationChanged;
+        ToastService.OnShow += HandleToast;
+        UpdateSidebarVisibility();
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        UpdateSidebarVisibility();
+        StateHasChanged();
+    }
+
+    private void UpdateSidebarVisibility()
+    {
+        var currentPath = NavigationManager.ToAbsoluteUri(NavigationManager.Uri).AbsolutePath;
+        ShouldShowSidebar = currentPath != "/login" && currentPath != "/register";
+    }
+
+    private void HandleToast(bool show, string type, string title, string message)
+    {
+        showToast = show;
+        toastType = type;
+        toastTitle = title;
+        toastMessage = message;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+        ToastService.OnShow -= HandleToast;
+    }
+}

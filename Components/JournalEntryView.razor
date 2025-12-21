@@ -1,0 +1,267 @@
+@using MindLog.Models
+@inject NavigationManager NavigationManager
+@inject JournalEntryService JournalEntryService
+@inject AuthStateService AuthStateService
+@inject ToastService ToastService
+@inject IJSRuntime JS
+
+@if (loading)
+{
+    <div class="flex flex-col items-center justify-center py-12">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+        <p class="mt-4 text-gray-600">Loading entry...</p>
+    </div>
+}
+else if (entry == null)
+{
+    <div class="text-center py-12">
+        <div class="text-6xl mb-4">📝</div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-2">Entry not found</h3>
+        <p class="text-gray-600 mb-6">The journal entry you're looking for doesn't exist.</p>
+        <button class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg transition-colors" @onclick="GoBack">Back to Journal</button>
+    </div>
+}
+else
+{
+    <div class="max-w-4xl mx-auto p-4">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex justify-between items-center mb-4">
+                    <button class="text-primary-600 hover:text-primary-700 font-medium flex items-center gap-2" @onclick="GoBack">
+                        ← Back to Journal
+                    </button>
+                    <div class="flex gap-2">
+                        <button class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors flex items-center gap-2" @onclick="EditEntry">
+                            ✏️ Edit
+                        </button>
+                        <button class="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors flex items-center gap-2" @onclick="DeleteEntry">
+                            🗑️ Delete
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <h1 class="text-3xl font-bold text-gray-900 mb-3">@entry.Title</h1>
+                    <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-2">
+                        <span class="flex items-center gap-1">📅 @entry.EntryDate.ToString("dddd, MMMM dd, yyyy")</span>
+                    </div>
+                    
+                    @if (entryMoods != null && entryMoods.Any())
+                    {
+                        <div class="flex flex-wrap gap-2 mb-2">
+                            @foreach (var entryMood in entryMoods)
+                            {
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium @GetMoodCategoryClass(entryMood.Mood.Category)">
+                                    <span class="text-base">@entryMood.Mood.Icon</span>
+                                    <span>@entryMood.Mood.Name</span>
+                                    @if (entryMood.IsPrimary)
+                                    {
+                                        <span class="text-xs font-semibold">Primary</span>
+                                    }
+                                </span>
+                            }
+                        </div>
+                    }
+                    
+                    <div class="flex flex-wrap gap-4 text-xs text-gray-500">
+                        <span>Created @entry.CreatedAt.ToString("MMM dd, yyyy 'at' h:mm tt")</span>
+                        <span>Updated @entry.UpdatedAt.ToString("MMM dd, yyyy 'at' h:mm tt")</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6">
+                @if (!string.IsNullOrEmpty(entry.Content))
+                {
+                    <div class="prose prose-lg max-w-none">
+                        @((MarkupString)RenderedContent)
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-8 text-gray-500">
+                        <p>No content available for this entry.</p>
+                    </div>
+                }
+            </div>
+
+            @if (!string.IsNullOrEmpty(entry.Tags))
+            {
+                <div class="p-6 border-t border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Tags</h3>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach (var tag in GetTags(entry.Tags))
+                        {
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-800">
+                                @tag
+                            </span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private JournalEntry? entry;
+    private List<JournalEntryMood>? entryMoods;
+    private bool loading = true;
+    private string RenderedContent = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEntry();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadEntry();
+    }
+
+    private async Task LoadEntry()
+    {
+        if (AuthStateService.CurrentUser?.Id == null)
+        {
+            loading = false;
+            return;
+        }
+
+        loading = true;
+        try
+        {
+            entry = await JournalEntryService.GetEntryByIdAsync(Id, AuthStateService.CurrentUser.Id);
+            if (entry != null)
+            {
+                RenderedContent = await ConvertMarkdownToHtml(entry.Content);
+                entryMoods = await JournalEntryService.GetEntryMoodsAsync(Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading entry: {ex.Message}");
+            ToastService.ShowError("Error", "Failed to load journal entry. Please try again.");
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task<string> ConvertMarkdownToHtml(string markdown)
+    {
+        if (string.IsNullOrEmpty(markdown))
+            return "";
+
+        try
+        {
+            return await JS.InvokeAsync<string>("markdownToHtml", markdown);
+        }
+        catch
+        {
+            return ConvertSimpleMarkdown(markdown);
+        }
+    }
+
+    private string ConvertSimpleMarkdown(string markdown)
+    {
+        if (string.IsNullOrEmpty(markdown))
+            return "";
+
+        var html = markdown;
+        
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"### (.*)", "<h3>$1</h3>");
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"## (.*)", "<h2>$1</h2>");
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"# (.*)", "<h1>$1</h1>");
+        
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\*\*(.*?)\*\*", "<strong>$1</strong>");
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\*(.*?)\*", "<em>$1</em>");
+        
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"`([^`]+)`", "<code>$1</code>");
+        
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"^- (.*)", "<li>$1</li>");
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"(<li>.*</li>\s*)+", "<ul>$1</ul>");
+        
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"^\d+\. (.*)", "<li>$1</li>");
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"(<li>.*</li>\s*)+", "<ol>$1</ol>");
+        
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"> (.*)", "<blockquote>$1</blockquote>");
+        
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\[(.*?)\]\((.*?)\)", "<a href=\"$2\" target=\"_blank\">$1</a>");
+        
+        html = html.Replace("\n", "<br>");
+        
+        return html;
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/journal");
+    }
+
+    private void EditEntry()
+    {
+        NavigationManager.NavigateTo($"/journal/edit/{Id}");
+    }
+
+    private async Task DeleteEntry()
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "Are you sure you want to delete this entry? This action cannot be undone."))
+        {
+            if (AuthStateService.CurrentUser?.Id != null)
+            {
+                try
+                {
+                    await JournalEntryService.DeleteEntryAsync(Id, AuthStateService.CurrentUser.Id);
+                    ToastService.ShowSuccess("Success", ToastMessages.EntryDeleted);
+                    NavigationManager.NavigateTo("/journal");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error deleting entry: {ex.Message}");
+                    ToastService.ShowError("Error", "Failed to delete entry. Please try again.");
+                }
+            }
+        }
+    }
+
+    private string GetMoodEmoji(string mood)
+    {
+        return mood.ToLower() switch
+        {
+            "happy" => "😊",
+            "sad" => "😢",
+            "excited" => "🎉",
+            "anxious" => "😰",
+            "grateful" => "🙏",
+            "frustrated" => "😤",
+            "peaceful" => "😌",
+            _ => "😐"
+        };
+    }
+
+    private List<string> GetTags(string tagsString)
+    {
+        if (string.IsNullOrEmpty(tagsString))
+            return new List<string>();
+
+        return tagsString.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                       .Select(tag => tag.Trim())
+                       .Where(tag => !string.IsNullOrEmpty(tag))
+                       .ToList();
+    }
+
+    private string GetMoodCategoryClass(MoodCategory category)
+    {
+        return category switch
+        {
+            MoodCategory.Positive => "mood-positive",
+            MoodCategory.Neutral => "mood-neutral", 
+            MoodCategory.Negative => "mood-negative",
+            _ => ""
+        };
+    }
+}

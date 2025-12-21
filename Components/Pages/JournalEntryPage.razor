@@ -1,0 +1,10 @@
+@page "/journal/{Id:int}"
+
+<PageTitle>Journal Entry - MindLog</PageTitle>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+}
+
+<JournalEntryView Id="@Id" />

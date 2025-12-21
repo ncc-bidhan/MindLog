@@ -1,0 +1,240 @@
+@inject IJSRuntime JSRuntime
+@inject ToastService ToastService
+
+<div class="markdown-editor">
+    <div class="toolbar">
+        <button class="toolbar-btn" @onclick="InsertBold" title="Bold">
+            <strong>B</strong>
+        </button>
+        <button class="toolbar-btn" @onclick="InsertItalic" title="Italic">
+            <em>I</em>
+        </button>
+        <button class="toolbar-btn" @onclick="InsertHeading" title="Heading">
+            H
+        </button>
+        <button class="toolbar-btn" @onclick="InsertList" title="List">
+            •
+        </button>
+        <button class="toolbar-btn" @onclick="InsertNumberedList" title="Numbered List">
+            1.
+        </button>
+        <button class="toolbar-btn" @onclick="InsertLink" title="Link">
+            🔗
+        </button>
+        <button class="toolbar-btn" @onclick="InsertCode" title="Code">
+            &lt;/&gt;
+        </button>
+        <button class="toolbar-btn" @onclick="InsertCodeBlock" title="Code Block">
+            { }
+        </button>
+        <button class="toolbar-btn" @onclick="InsertQuote" title="Quote">
+            "
+        </button>
+    </div>
+    
+    <div class="editor-container">
+        <div class="editor-pane">
+            <textarea 
+                id="editor-textarea"
+                class="editor-textarea" 
+                @bind="Content"
+                @bind:after="OnContentChanged"
+                placeholder="Start writing your journal entry...">
+            </textarea>
+        </div>
+        
+        <div class="preview-pane">
+            <div class="preview-content" id="markdown-preview">
+                @((MarkupString)RenderedContent)
+            </div>
+        </div>
+    </div>
+    
+    <div class="editor-footer">
+        <span class="word-count">@WordCount words • @CharacterCount characters</span>
+        <div class="editor-modes">
+            <button class="mode-btn @(ShowPreview ? "active" : "")" @onclick="() => SetEditMode(true)">Preview</button>
+            <button class="mode-btn @(!ShowPreview ? "active" : "")" @onclick="() => SetEditMode(false)">Edit</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Content { get; set; } = "";
+    
+    [Parameter]
+    public EventCallback<string> ContentChanged { get; set; }
+    
+    private bool ShowPreview { get; set; } = true;
+    private string RenderedContent { get; set; } = "";
+    private int WordCount { get; set; } = 0;
+    private int CharacterCount { get; set; } = 0;
+    private bool _jsInitialized = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Initialize JavaScript after a short delay
+            await Task.Delay(500);
+            
+            try
+            {
+                // Test if JavaScript functions are available
+                await JSRuntime.InvokeVoidAsync("eval", "typeof window.getElement !== 'undefined'");
+                _jsInitialized = true;
+                Console.WriteLine("JavaScript functions initialized successfully");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"JavaScript initialization failed: {ex.Message}");
+                // Continue without JS - fallback will be used
+            }
+            
+            await UpdatePreview();
+        }
+    }
+
+    private async Task OnContentChanged()
+    {
+        WordCount = CountWords(Content);
+        CharacterCount = Content.Length;
+        await ContentChanged.InvokeAsync(Content);
+        await UpdatePreview();
+    }
+
+    private async Task UpdatePreview()
+    {
+        if (ShowPreview && !string.IsNullOrEmpty(Content))
+        {
+            try
+            {
+                RenderedContent = await JSRuntime.InvokeAsync<string>("markdownToHtml", Content);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error rendering markdown: {ex.Message}");
+                RenderedContent = ConvertSimpleMarkdown(Content);
+            }
+        }
+        else
+        {
+            RenderedContent = "";
+        }
+    }
+
+    private void SetEditMode(bool showPreview)
+    {
+        ShowPreview = showPreview;
+        if (showPreview)
+        {
+            _ = UpdatePreview();
+        }
+    }
+
+    private async Task InsertMarkdown(string before, string after)
+    {
+        try
+        {
+            // Try to get the textarea element
+            var textarea = await JSRuntime.InvokeAsync<IJSObjectReference>("getElement", "editor-textarea");
+            
+            if (textarea != null)
+            {
+                // JS is working, use proper text insertion
+                try
+                {
+                    var start = await textarea.InvokeAsync<int>("getSelectionStart");
+                    var end = await textarea.InvokeAsync<int>("getSelectionEnd");
+                    
+                    // Validate cursor positions
+                    start = Math.Max(0, Math.Min(start, Content.Length));
+                    end = Math.Max(start, Math.Min(end, Content.Length));
+                    
+                    var selectedText = Content.Substring(start, end - start);
+                    var newText = before + selectedText + after;
+                    
+                    Content = Content.Substring(0, start) + newText + Content.Substring(end);
+                }
+                catch (Exception jsEx)
+                {
+                    Console.WriteLine($"JS cursor operations failed: {jsEx.Message}");
+                    // Fallback to insertion at current cursor position (end of content)
+                    Content += before + after;
+                }
+            }
+            else
+            {
+                Console.WriteLine("Textarea element not found, using fallback");
+                // Fallback to simple insertion at end
+                Content += before + after;
+            }
+            
+            // Update counts and notify
+            WordCount = CountWords(Content);
+            CharacterCount = Content.Length;
+            
+            await ContentChanged.InvokeAsync(Content);
+            await UpdatePreview();
+            
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error inserting markdown: {ex.Message}");
+            // Ultimate fallback
+            Content += before + after;
+            ToastService.ShowError("Formatting Issue", "Text added at end. You can also type markdown directly.");
+        }
+    }
+
+    private int CountWords(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return 0;
+            
+        return text.Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries).Length;
+    }
+
+    private string ConvertSimpleMarkdown(string markdown)
+    {
+        if (string.IsNullOrEmpty(markdown))
+            return "";
+
+        var html = markdown;
+        
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"### (.*)", "<h3>$1</h3>");
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"## (.*)", "<h2>$1</h2>");
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"# (.*)", "<h1>$1</h1>");
+        
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\*\*(.*?)\*\*", "<strong>$1</strong>");
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\*(.*?)\*", "<em>$1</em>");
+        
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"`([^`]+)`", "<code>$1</code>");
+        
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"^- (.*)", "<li>$1</li>");
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"(<li>.*</li>\s*)+", "<ul>$1</ul>");
+        
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"^\d+\. (.*)", "<li>$1</li>");
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"(<li>.*</li>\s*)+", "<ol>$1</ol>");
+        
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"> (.*)", "<blockquote>$1</blockquote>");
+        
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\[(.*?)\]\((.*?)\)", "<a href=\"$2\" target=\"_blank\">$1</a>");
+        
+        html = html.Replace("\n", "<br>");
+        
+        return html;
+    }
+
+    private void InsertBold() => InsertMarkdown("**", "**");
+    private void InsertItalic() => InsertMarkdown("*", "*");
+    private void InsertHeading() => InsertMarkdown("## ", "");
+    private void InsertList() => InsertMarkdown("- ", "");
+    private void InsertNumberedList() => InsertMarkdown("1. ", "");
+    private void InsertLink() => InsertMarkdown("[", "](url)");
+    private void InsertCode() => InsertMarkdown("`", "`");
+    private void InsertCodeBlock() => InsertMarkdown("```\n", "\n```");
+    private void InsertQuote() => InsertMarkdown("> ", "");
+}

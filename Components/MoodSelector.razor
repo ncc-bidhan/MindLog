@@ -1,0 +1,241 @@
+@using MindLog.Models
+
+<div class="mood-selector">
+    @if (moods == null || !moods.Any())
+    {
+        <div class="mood-loading">
+            <div class="spinner-small"></div>
+            <span>Loading moods...</span>
+        </div>
+    }
+    else
+    {
+        <div class="mood-categories">
+            @foreach (var category in Enum.GetValues<MoodCategory>())
+            {
+                var categoryMoods = moods.Where(m => m.Category == category).ToList();
+                if (categoryMoods.Any())
+                {
+                    <div class="mood-category">
+                        <div class="category-header" style="color: @MoodDefinitions.GetCategoryColor(category)">
+                            <span class="category-icon">
+                                @GetCategoryIcon(category)
+                            </span>
+                            <span class="category-name">@category.ToString()</span>
+                            <span class="category-count">(@categoryMoods.Count)</span>
+                        </div>
+                        <div class="mood-grid">
+                            @foreach (var mood in categoryMoods)
+                            {
+                                var isSelected = SelectedMoodIds.Contains(mood.Id);
+                                var isPrimary = SelectedMoodIds.IndexOf(mood.Id) == 0;
+                                var moodIndex = SelectedMoodIds.IndexOf(mood.Id);
+                                var isDisabled = IsMaxMoodsReached && !isSelected;
+                                
+                                Console.WriteLine($"Rendering {mood.Name}: Selected={isSelected}, Primary={isPrimary}, Disabled={isDisabled}");
+                                
+                                <button class="mood-button @GetMoodButtonClass(isSelected, isPrimary, moodIndex)"
+                                        type="button"
+                                        @onclick="@(() => ToggleMood(mood.Id))"
+                                        disabled="@isDisabled"
+                                        title="@mood.Description">
+                                    <span class="mood-icon">@mood.Icon</span>
+                                    <span class="mood-name">@mood.Name</span>
+                                    @if (isSelected)
+                                    {
+                                        <span class="mood-indicator">
+                                            @if (isPrimary)
+                                            {
+                                                <span class="primary-indicator">P</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="secondary-indicator">S</span>
+                                            }
+                                        </span>
+                                    }
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <div class="selected-moods-summary">
+            @if (SelectedMoodIds.Any())
+            {
+                <div class="selected-moods">
+                    <span class="selected-label">Selected:</span>
+                    @foreach (var moodId in SelectedMoodIds)
+                    {
+                        var mood = moods.FirstOrDefault(m => m.Id == moodId);
+                        if (mood != null)
+                        {
+                            var isPrimary = SelectedMoodIds.IndexOf(moodId) == 0;
+                            <span class="selected-mood-chip @GetChipClass(isPrimary)">
+                                <span class="chip-icon">@mood.Icon</span>
+                                <span class="chip-name">@mood.Name</span>
+                                @if (isPrimary)
+                                {
+                                    <span class="chip-badge">Primary</span>
+                                }
+                                else
+                                {
+                                    <span class="chip-badge">Secondary</span>
+                                }
+                            </span>
+                        }
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="no-moods-selected">
+                    <span class="warning-icon">⚠️</span>
+                    <span>Please select at least one primary mood</span>
+                </div>
+            }
+        </div>
+
+        @if (validationError != null)
+        {
+            <div class="validation-error">
+                <span class="error-icon">❌</span>
+                <span>@validationError</span>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<int> selectedMoodIds = new();
+    
+    [Parameter]
+    public List<int> SelectedMoodIds 
+    { 
+        get => selectedMoodIds;
+        set 
+        {
+            Console.WriteLine($"SelectedMoodIds setter called with {value?.Count ?? 0} items");
+            selectedMoodIds = value ?? new List<int>();
+        }
+    }
+
+    [Parameter]
+    public EventCallback<List<int>> SelectedMoodIdsChanged { get; set; }
+
+    private List<Mood> moods = new();
+    private string? validationError;
+    private bool IsMaxMoodsReached 
+    { 
+        get 
+        {
+            var count = SelectedMoodIds?.Count ?? 0;
+            var result = count >= 3;
+            Console.WriteLine($"IsMaxMoodsReached: {count} moods selected, result: {result}");
+            return result;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        LoadMoods();
+    }
+
+    private void LoadMoods()
+    {
+        try
+        {
+            // Use the predefined moods
+            moods = MoodDefinitions.PredefinedMoods.Where(m => m.IsActive).ToList();
+            Console.WriteLine($"Loaded {moods.Count} moods for selection");
+        }
+        catch (Exception ex)
+        {
+            validationError = $"Error loading moods: {ex.Message}";
+            Console.WriteLine($"Error loading moods: {ex.Message}");
+        }
+    }
+
+    private async Task ToggleMood(int moodId)
+    {
+        Console.WriteLine($"ToggleMood called with moodId: {moodId}");
+        Console.WriteLine($"Current SelectedMoodIds count: {SelectedMoodIds?.Count ?? 0}");
+        
+        if (SelectedMoodIds == null)
+        {
+            SelectedMoodIds = new List<int>();
+            Console.WriteLine("SelectedMoodIds was null, initialized new list");
+        }
+        
+        if (SelectedMoodIds.Contains(moodId))
+        {
+            // Remove mood
+            SelectedMoodIds.Remove(moodId);
+            Console.WriteLine($"Removed mood {moodId}, new count: {SelectedMoodIds.Count}");
+            validationError = null;
+        }
+        else
+        {
+            // Add mood - first mood is always primary, others are secondary
+            if (SelectedMoodIds.Count >= 3)
+            {
+                validationError = "Maximum of 3 moods allowed (1 primary + 2 secondary)";
+                Console.WriteLine("Max moods reached");
+                return;
+            }
+
+            SelectedMoodIds.Add(moodId);
+            validationError = null;
+            Console.WriteLine($"Added mood {moodId}, new count: {SelectedMoodIds.Count}");
+        }
+
+        await SelectedMoodIdsChanged.InvokeAsync(SelectedMoodIds);
+        Console.WriteLine("Notified parent of selection change");
+    }
+
+    private string GetCategoryIcon(MoodCategory category)
+    {
+        return category switch
+        {
+            MoodCategory.Positive => "🌟",
+            MoodCategory.Neutral => "⚪",
+            MoodCategory.Negative => "🔻",
+            _ => "❓"
+        };
+    }
+
+    private string GetMoodButtonClass(bool isSelected, bool isPrimary, int moodIndex)
+    {
+        var classes = new List<string> { "mood-button" };
+
+        if (isSelected)
+        {
+            classes.Add(isPrimary ? "primary-mood" : "secondary-mood");
+        }
+
+        if (IsMaxMoodsReached && !isSelected)
+        {
+            classes.Add("disabled");
+        }
+
+        return string.Join(" ", classes);
+    }
+
+    private string GetChipClass(bool isPrimary)
+    {
+        return isPrimary ? "primary-chip" : "secondary-chip";
+    }
+
+    public bool Validate()
+    {
+        if (SelectedMoodIds == null || SelectedMoodIds.Count == 0)
+        {
+            validationError = "At least one mood must be selected";
+            return false;
+        }
+        validationError = null;
+        return true;
+    }
+}

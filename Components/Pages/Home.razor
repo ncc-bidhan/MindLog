@@ -1,0 +1,41 @@
+@page "/"
+@inject AuthStateService AuthStateService
+@inject NavigationManager NavigationManager
+
+@code {
+    protected override void OnInitialized()
+    {
+        if (!AuthStateService.IsAuthenticated)
+        {
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!AuthStateService.IsAuthenticated)
+        {
+            NavigationManager.NavigateTo("/login");
+        }
+    }
+}
+
+@if (AuthStateService.IsAuthenticated)
+{
+    <h1>Welcome to MindLog, @AuthStateService.CurrentUser?.Username!</h1>
+
+    <p>Your personal journal and note-taking application.</p>
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Dashboard</h5>
+                    <p class="card-text">Welcome back! Your journal entries will appear here.</p>
+                    <button class="btn btn-primary">Create New Entry</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

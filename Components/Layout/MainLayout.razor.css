@@ -1,0 +1,144 @@
+.page {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+main {
+    flex: 1;
+    background: #ffffff;
+    border-radius: 20px 20px 0 0;
+    margin-top: 20px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar {
+    background: linear-gradient(180deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    backdrop-filter: blur(10px);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+}
+
+.top-row {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(214, 214, 214, 0.3);
+    justify-content: flex-end;
+    height: 4rem;
+    display: flex;
+    align-items: center;
+    padding: 0 2rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+    .top-row ::deep a, .top-row ::deep .btn-link {
+        white-space: nowrap;
+        margin-left: 1.5rem;
+        text-decoration: none;
+        color: #4a5568;
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+        .top-row ::deep a:hover, .top-row ::deep .btn-link:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            transform: translateY(-1px);
+            text-decoration: none;
+        }
+
+        .top-row ::deep a:first-child {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+.page-no-sidebar {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.content {
+    padding: 2rem;
+    animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 640.98px) {
+    .top-row {
+        justify-content: space-between;
+        height: 3.5rem;
+        padding: 0 1rem;
+    }
+
+        .top-row ::deep a, .top-row ::deep .btn-link {
+            margin-left: 0;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+        }
+
+    main {
+        border-radius: 15px 15px 0 0;
+        margin-top: 15px;
+    }
+}
+
+@media (min-width: 641px) {
+    .page {
+        flex-direction: row;
+        background: #f7fafc;
+    }
+
+    .sidebar {
+        width: 280px;
+        height: 100vh;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .top-row {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+    }
+
+        .top-row.auth ::deep a:first-child {
+            flex: 1;
+            text-align: right;
+            width: 0;
+        }
+
+    .top-row, article {
+        padding-left: 2rem !important;
+        padding-right: 1.5rem !important;
+    }
+
+    main {
+        border-radius: 0;
+        margin-top: 0;
+        box-shadow: none;
+    }
+}
+
+@media (min-width: 1024px) {
+    .sidebar {
+        width: 320px;
+    }
+}

@@ -1,0 +1,76 @@
+@inject AuthStateService AuthStateService
+@inject NavigationManager NavigationManager
+
+@implements IDisposable
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">MindLog</a>
+        @if (AuthStateService.IsAuthenticated)
+        {
+            <span class="navbar-text text-white">Welcome, @AuthStateService.CurrentUser?.Username</span>
+        }
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler"/>
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+        @if (AuthStateService.IsAuthenticated)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                    <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="journal">
+                    <span class="bi bi-journal-text-nav-menu" aria-hidden="true"></span> Journal
+                </NavLink>
+            </div>
+
+            <div class="nav-item px-3">
+                <button class="nav-link btn btn-link" @onclick="Logout">
+                    <span class="bi bi-box-arrow-right-nav-menu" aria-hidden="true"></span> Logout
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="login">
+                    <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> Login
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="register">
+                    <span class="bi bi-person-plus-fill-nav-menu" aria-hidden="true"></span> Register
+                </NavLink>
+            </div>
+        }
+    </nav>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        AuthStateService.OnAuthStateChanged += HandleAuthStateChanged;
+    }
+
+    public void Dispose()
+    {
+        AuthStateService.OnAuthStateChanged -= HandleAuthStateChanged;
+    }
+
+    private void HandleAuthStateChanged(User? user)
+    {
+        StateHasChanged();
+    }
+
+    private void Logout()
+    {
+        AuthStateService.Logout();
+        NavigationManager.NavigateTo("/login");
+    }
+}

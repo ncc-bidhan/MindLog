@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="MindLog.csproj">
+    <Deploy Solution="Release|*" />
+  </Project>
+</Solution>

@@ -1,0 +1,219 @@
+@page "/journal/new"
+@page "/journal/edit/{Id:int}"
+
+@using System.ComponentModel.DataAnnotations
+@inject NavigationManager NavigationManager
+@inject JournalEntryService JournalEntryService
+@inject AuthStateService AuthStateService
+
+<PageTitle>@(IsEditing ? "Edit Entry" : "New Entry") - MindLog</PageTitle>
+
+<div class="journal-form">
+    <div class="form-header">
+        <div class="header-left">
+            <button class="back-btn" @onclick="Cancel">
+                ← Cancel
+            </button>
+            <h1>@(IsEditing ? "Edit Entry" : "New Entry")</h1>
+        </div>
+        <div class="header-right">
+            <button class="save-btn" @onclick="SaveEntry" disabled="@isSaving">
+                @if (isSaving)
+                {
+                    <span class="spinner-small"></span>
+                    <span>Saving...</span>
+                }
+                else
+                {
+                    <span>💾 Save Entry</span>
+                }
+            </button>
+        </div>
+    </div>
+
+    @if (loading)
+    {
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
+    }
+    else
+    {
+        <EditForm Model="@entry">
+            <DataAnnotationsValidator />
+            
+            <div class="form-main">
+                <div class="form-section">
+                    <div class="form-row">
+                        <div class="form-group title-group">
+                            <label for="title">Title *</label>
+                            <InputText id="title" @bind-Value="entry.Title" class="form-input title-input" placeholder="Give your entry a title..." />
+                            <ValidationMessage For="@(() => entry.Title)" />
+                        </div>
+                        
+                        <div class="form-group date-group">
+                            <label for="entryDate">Date *</label>
+                            <InputDate id="entryDate" @bind-Value="entryDate" class="form-input" />
+                            <ValidationMessage For="@(() => entry.EntryDate)" />
+                            @if (dateConflict)
+                            {
+                                <div class="validation-error">An entry already exists for this date</div>
+                            }
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group mood-group">
+                            <label>Moods *</label>
+                            <MoodSelector @ref="moodSelector" @bind-SelectedMoodIds="selectedMoodIds" />
+                            @if (moodValidationError != null)
+                            {
+                                <div class="validation-error">@moodValidationError</div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group tags-group">
+                            <label for="tags">Tags</label>
+                            <InputText id="tags" @bind-Value="entry.Tags" 
+                                      class="form-input" 
+                                      placeholder="work, personal, health" />
+                            <small class="form-help">Separate tags with commas</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="content-section">
+                    <div class="content-header">
+                        <label>Content *</label>
+                        <div class="content-tips">
+                            <span class="tip">💡 Use **bold**, *italic*, # headings, - lists</span>
+                        </div>
+                    </div>
+                    
+                    <MarkdownEditor @bind-Content="entry.Content" />
+                    <ValidationMessage For="@(() => entry.Content)" />
+                    
+                    @if (string.IsNullOrWhiteSpace(entry.Content))
+                    {
+                        <div class="validation-error">Content is required</div>
+                    }
+                </div>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@if (showSuccessMessage)
+{
+    <div class="success-message">
+        ✅ Entry saved successfully!
+    </div>
+}
+
+@if (errorMessage != null)
+{
+    <div class="error-message">
+        ❌ @errorMessage
+    </div>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    private JournalEntry entry = new();
+    private DateTime entryDate = DateTime.Today;
+    private bool loading = true;
+    private bool isSaving = false;
+    private bool dateConflict = false;
+    private bool showSuccessMessage = false;
+    private string? errorMessage = null;
+    private string? moodValidationError = null;
+    private List<int> selectedMoodIds = new();
+    private MoodSelector? moodSelector;
+    private bool IsEditing => Id.HasValue;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthStateService.CurrentUser?.Id == null)
+        {
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+
+        if (IsEditing)
+        {
+            await LoadEntry();
+        }
+        else
+        {
+            entry = new JournalEntry
+            {
+                UserId = AuthStateService.CurrentUser.Id,
+                EntryDate = DateOnly.FromDateTime(DateTime.Today)
+            };
+            entryDate = DateTime.Today;
+        }
+        loading = false;
+    }
+
+    private async Task LoadEntry()
+    {
+        if (AuthStateService.CurrentUser?.Id == null || !Id.HasValue) return;
+        try
+        {
+            var loadedEntry = await JournalEntryService.GetEntryByIdAsync(Id.Value, AuthStateService.CurrentUser.Id);
+            if (loadedEntry != null)
+            {
+                entry = loadedEntry;
+                entryDate = entry.EntryDate.ToDateTime(TimeOnly.MinValue);
+                var entryMoods = await JournalEntryService.GetEntryMoodsAsync(Id.Value);
+                selectedMoodIds = entryMoods.OrderBy(jem => jem.IsPrimary ? 0 : 1).Select(jem => jem.MoodId).ToList();
+            }
+            else NavigationManager.NavigateTo("/journal");
+        }
+        catch (Exception ex) { errorMessage = $"Error loading entry: {ex.Message}"; }
+    }
+
+    private async Task SaveEntry()
+    {
+        if (isSaving) return;
+        if (string.IsNullOrWhiteSpace(entry.Title) || string.IsNullOrWhiteSpace(entry.Content))
+        {
+            errorMessage = "Title and content are required";
+            return;
+        }
+        moodValidationError = null;
+        if (moodSelector != null && !moodSelector.Validate()) return;
+        if (selectedMoodIds == null || selectedMoodIds.Count == 0)
+        {
+            moodValidationError = "Please select at least one mood";
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+            errorMessage = null;
+            dateConflict = false;
+            entry.EntryDate = DateOnly.FromDateTime(entryDate);
+            var existingEntry = await JournalEntryService.EntryExistsForDateAsync(entry.EntryDate, AuthStateService.CurrentUser.Id, IsEditing ? Id : null);
+            if (existingEntry)
+            {
+                dateConflict = true;
+                errorMessage = "An entry already exists for this date";
+                return;
+            }
+            if (IsEditing) await JournalEntryService.UpdateEntryAsync(entry, selectedMoodIds);
+            else await JournalEntryService.CreateEntryAsync(entry, selectedMoodIds);
+            showSuccessMessage = true;
+            await Task.Delay(1000);
+            NavigationManager.NavigateTo($"/journal/{entry.Id}");
+        }
+        catch (Exception ex) { errorMessage = $"Error saving entry: {ex.Message}"; }
+        finally { isSaving = false; }
+    }
+
+    private void Cancel() => NavigationManager.NavigateTo(IsEditing ? $"/journal/{Id}" : "/journal");
+}
