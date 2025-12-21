@@ -148,12 +148,23 @@
         }
         else
         {
+            // Check for date query parameter
+            var uri = new Uri(NavigationManager.Uri);
+            var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+            var dateParam = query["date"];
+            
+            var defaultDate = DateTime.Today;
+            if (!string.IsNullOrEmpty(dateParam) && DateOnly.TryParse(dateParam, out var queryDate))
+            {
+                defaultDate = queryDate.ToDateTime(TimeOnly.MinValue);
+            }
+
             entry = new JournalEntry
             {
                 UserId = AuthStateService.CurrentUser.Id,
-                EntryDate = DateOnly.FromDateTime(DateTime.Today)
+                EntryDate = DateOnly.FromDateTime(defaultDate)
             };
-            entryDate = DateTime.Today;
+            entryDate = defaultDate;
         }
         loading = false;
     }

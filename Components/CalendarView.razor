@@ -1,0 +1,680 @@
+@using MindLog.Models
+@using MindLog.Services
+@inject JournalEntryService JournalEntryService
+@inject AuthStateService AuthStateService
+@inject NavigationManager NavigationManager
+
+<div class="calendar-container bg-white rounded-lg shadow-lg p-4 max-w-6xl mx-auto">
+    <!-- Calendar Header with Navigation -->
+    <div class="calendar-header flex items-center justify-between mb-6">
+        <div class="flex items-center space-x-4">
+            <button @onclick="PreviousMonth" 
+                    class="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                    aria-label="Previous month">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            
+            <h2 class="text-2xl font-bold text-gray-800 min-w-[200px] text-center">
+                @CurrentMonth.ToString("MMMM yyyy")
+            </h2>
+            
+            <button @onclick="NextMonth" 
+                    class="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                    aria-label="Next month">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="flex justify-center mb-4">
+            <button @onclick="CreateQuickEntry" 
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                <span>Quick Entry</span>
+            </button>
+        </div>
+
+        <!-- View Controls -->
+        <div class="flex items-center space-x-2">
+            <div class="view-tabs flex bg-gray-100 rounded-lg p-1">
+                <button @onclick="() => SetView(CalendarViewType.Month)" 
+                        class="px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200 @(CurrentView == CalendarViewType.Month ? "bg-white shadow-sm text-blue-600" : "text-gray-600 hover:text-gray-800")">
+                    Month
+                </button>
+                <button @onclick="() => SetView(CalendarViewType.Week)" 
+                        class="px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200 @(CurrentView == CalendarViewType.Week ? "bg-white shadow-sm text-blue-600" : "text-gray-600 hover:text-gray-800")">
+                    Week
+                </button>
+                <button @onclick="() => SetView(CalendarViewType.Day)" 
+                        class="px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200 @(CurrentView == CalendarViewType.Day ? "bg-white shadow-sm text-blue-600" : "text-gray-600 hover:text-gray-800")">
+                    Day
+                </button>
+            </div>
+            
+            <button @onclick="GoToToday" 
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium">
+                Today
+            </button>
+        </div>
+    </div>
+
+    <!-- Mood Legend -->
+    <div class="mood-legend mb-4 flex flex-wrap gap-2 text-xs">
+        <span class="text-gray-600 font-medium">Moods:</span>
+        @foreach (var mood in MoodDefinitions.PredefinedMoods.Where(m => m.IsActive).Take(6))
+        {
+            <div class="flex items-center space-x-1">
+                <div class="w-3 h-3 rounded-full border border-gray-300" style="background-color: @mood.Color"></div>
+                <span class="text-gray-600">@mood.Icon</span>
+            </div>
+        }
+    </div>
+
+    <!-- Calendar Grid -->
+    @if (CurrentView == CalendarViewType.Month)
+    {
+        <div class="calendar-grid">
+            <!-- Weekday Headers -->
+            <div class="weekday-headers grid grid-cols-7 gap-1 mb-2">
+                @foreach (var day in WeekdayHeaders)
+                {
+                    <div class="text-center font-semibold text-sm text-gray-600 py-2">
+                        @day
+                    </div>
+                }
+            </div>
+
+            <!-- Calendar Days -->
+            <div class="calendar-days grid grid-cols-7 gap-1">
+                @foreach (var day in CalendarDays)
+                {
+                    var hasEntry = EntryDates.ContainsKey(day.Date);
+                    var entryMoods = hasEntry ? EntryDates[day.Date] : new List<Mood>();
+                    var isToday = day.Date == DateOnly.FromDateTime(DateTime.Today);
+                    var isSelected = SelectedDate == day.Date;
+                    var isCurrentMonth = day.Date.Month == CurrentMonth.Month && day.Date.Year == CurrentMonth.Year;
+                    
+                    <div class="calendar-day relative group cursor-pointer transition-all duration-200
+                         @(isToday ? "ring-2 ring-blue-500" : "")
+                         @(isSelected ? "bg-blue-50 border-blue-500 border" : "")
+                         @(!isCurrentMonth ? "opacity-40" : "")
+                         @(hasEntry ? "hover:shadow-md" : "hover:bg-gray-50")
+                         rounded-lg p-2 min-h-[80px] border border-gray-200"
+                         @onclick="() => SelectDate(day.Date)"
+                         role="button"
+                         tabindex="0"
+                         aria-label="@($"{day.Date:MMMM d, yyyy}{(hasEntry ? " - Has journal entry" : "")}")"
+                         @onkeydown="e => HandleKeydown(e, day.Date)">
+                        
+                        <!-- Date Number -->
+                        <div class="date-number font-medium text-sm @(isToday ? "text-blue-600 font-bold" : "text-gray-700")">
+                            @day.Date.Day
+                        </div>
+
+                        <!-- Entry Indicators -->
+                        @if (hasEntry)
+                        {
+                            <div class="entry-indicators mt-1">
+                                <!-- Mood dots -->
+                                <div class="flex space-x-1 mb-1">
+                                    @foreach (var mood in entryMoods.Take(3))
+                                    {
+                                        <div class="w-2 h-2 rounded-full" 
+                                             style="background-color: @mood.Color"
+                                             title="@mood.Name">
+                                        </div>
+                                    }
+                                    @if (entryMoods.Count > 3)
+                                    {
+                                        <span class="text-xs text-gray-500">+@(entryMoods.Count - 3)</span>
+                                    }
+                                </div>
+                                
+                                <!-- Entry preview -->
+                                <div class="entry-preview">
+                                    <div class="text-xs text-gray-600 truncate" title="@EntryPreviews[day.Date]">
+                                        @EntryPreviews[day.Date]
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Hover tooltip for entry details -->
+                        @if (hasEntry)
+                        {
+                            <div class="absolute z-10 invisible group-hover:visible bg-gray-900 text-white p-2 rounded-lg text-xs bottom-full left-1/2 transform -translate-x-1/2 mb-2 whitespace-nowrap shadow-lg">
+                                <div class="font-semibold">@EntryPreviews[day.Date]</div>
+                                <div class="text-gray-300">
+                                    @if (entryMoods.Any())
+                                    {
+                                        @string.Join(", ", entryMoods.Select(m => m.Icon))
+                                    }
+                                    else
+                                    {
+                                        <text>No mood recorded</text>
+                                    }
+                                </div>
+                                <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else if (CurrentView == CalendarViewType.Week)
+    {
+        <div class="week-view">
+            <div class="grid grid-cols-7 gap-2 mb-4">
+                @foreach (var day in WeekDays)
+                {
+                    <div class="text-center font-semibold text-sm p-2 @(!day.IsCurrentMonth ? "text-gray-400" : "text-gray-700")">
+                        <div>@day.Date.ToString("ddd")</div>
+                        <div class="text-lg @(day.Date == DateOnly.FromDateTime(DateTime.Today) ? "text-blue-600 font-bold" : "")">@day.Date.Day</div>
+                    </div>
+                }
+            </div>
+            
+            <div class="grid grid-cols-7 gap-2">
+                @foreach (var day in WeekDays)
+                {
+                    var hasEntry = EntryDates.ContainsKey(day.Date);
+                    var entryMoods = hasEntry ? EntryDates[day.Date] : new List<Mood>();
+                    
+                    <div class="min-h-[100px] border border-gray-200 rounded-lg p-2 @(!day.IsCurrentMonth ? "bg-gray-50 opacity-60" : "bg-white") @(day.Date == DateOnly.FromDateTime(DateTime.Today) ? "ring-2 ring-blue-500" : "") hover:shadow-md transition-shadow cursor-pointer"
+                         @onclick="() => SelectDate(day.Date)">
+                        
+                        @if (hasEntry)
+                        {
+                            <div class="entry-indicators">
+                                <div class="flex space-x-1 mb-1">
+                                    @foreach (var mood in entryMoods.Take(3))
+                                    {
+                                        <div class="w-2 h-2 rounded-full" style="background-color: @mood.Color" title="@mood.Name"></div>
+                                    }
+                                </div>
+                                <div class="text-xs text-gray-600 truncate" title="@EntryPreviews[day.Date]">
+                                    @EntryPreviews[day.Date]
+                                </div>
+                                <div class="text-xs text-blue-600 font-medium mt-1">
+                                    @if (entryMoods.Any())
+                                    {
+                                        <span>@entryMoods.Count</span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-gray-400 text-xs text-center mt-4">
+                                No entries
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else if (CurrentView == CalendarViewType.Day)
+    {
+        <div class="day-view">
+            @if (SelectedDate.HasValue)
+            {
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <div class="text-center mb-6">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">
+                            @SelectedDate.Value.ToString("dddd, MMMM d, yyyy")
+                            @if (SelectedDate.Value == DateOnly.FromDateTime(DateTime.Today))
+                            {
+                                <span class="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Today</span>
+                            }
+                        </h3>
+                    </div>
+
+                    @if (SelectedDateEntries?.Any() == true)
+                    {
+                        <div class="space-y-4">
+                            @foreach (var entry in SelectedDateEntries)
+                            {
+                                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <h4 class="font-semibold text-gray-800">@entry.Title</h4>
+                                        <div class="text-sm text-gray-500">
+                                            @entry.CreatedAt.ToString("h:mm tt")
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="flex items-center space-x-2 mb-2">
+                                        @if (entry.JournalEntryMoods?.Any() == true)
+                                        {
+                                            @foreach (var jem in entry.JournalEntryMoods.Take(1))
+                                            {
+                                                <span class="text-lg" title="@jem.Mood.Name">@jem.Mood.Icon</span>
+                                                <span class="text-sm text-gray-600">@jem.Mood.Name</span>
+                                            }
+                                        }
+                                        @if (!string.IsNullOrEmpty(entry.Tags))
+                                        {
+                                            var tagList = entry.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(t => t.Trim()).ToList();
+                                            <div class="flex space-x-1">
+                                                @foreach (var tag in tagList.Take(3))
+                                                {
+                                                    <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">@tag</span>
+                                                }
+                                                @if (tagList.Count > 3)
+                                                {
+                                                    <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">+@(tagList.Count - 3)</span>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                    
+                                    <p class="text-gray-600 text-sm mb-3">
+                                        @(entry.Content.Length > 150 ? entry.Content.Substring(0, 150) + "..." : entry.Content)
+                                    </p>
+                                    
+                                    <div class="flex justify-end">
+                                        <button @onclick="() => ViewEntry(entry.Id)" 
+                                                class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                            Read More →
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-8">
+                            <div class="text-gray-400 mb-4">
+                                <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                                </svg>
+                            </div>
+                            <p class="text-gray-600 mb-4">No journal entries for this date</p>
+                            <button @onclick="CreateNewEntry" 
+                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                Create Entry
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-8">
+                    <p class="text-gray-500 mb-4">Select a date to view its entries</p>
+                    <button @onclick="() => SetView(CalendarViewType.Month)" 
+                            class="text-blue-600 hover:text-blue-800 underline">
+                        Go to Month view
+                    </button>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- Loading State -->
+    @if (isLoading)
+    {
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 shadow-xl">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p class="mt-2 text-gray-600">Loading calendar...</p>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Selected Date Entry Modal -->
+@if (ShowEntryModal && SelectedDate != null)
+{
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-xl">
+            <div class="sticky top-0 bg-white border-b p-4 flex items-center justify-between">
+                <h3 class="text-xl font-bold text-gray-800">
+                    Entries for @SelectedDate.Value.ToString("MMMM d, yyyy")
+                </h3>
+                <button @onclick="CloseEntryModal" 
+                        class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="p-4">
+                @if (SelectedDateEntries != null && SelectedDateEntries.Any())
+                {
+                    @foreach (var entry in SelectedDateEntries)
+                    {
+                        <div class="border-b last:border-b-0 pb-4 mb-4 last:pb-0 last:mb-0">
+                            <div class="flex items-start justify-between mb-2">
+                                <h4 class="font-semibold text-gray-800">@entry.Title</h4>
+                                <div class="flex items-center space-x-2">
+                                    @if (entry.JournalEntryMoods.Any())
+                                    {
+                                        @foreach (var jem in entry.JournalEntryMoods.Take(3))
+                                        {
+                                            <span class="text-lg" title="@jem.Mood.Name">@jem.Mood.Icon</span>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                            <p class="text-gray-600 text-sm mb-2">@(entry.Content.Length > 200 ? entry.Content.Substring(0, 200) + "..." : entry.Content)</p>
+                            <div class="flex items-center justify-between">
+                                <div class="text-xs text-gray-500">
+                                    Created: @entry.CreatedAt.ToString("MMM d, yyyy h:mm tt")
+                                </div>
+                                <button @onclick="() => ViewEntry(entry.Id)" 
+                                        class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                    Read More
+                                </button>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="text-center py-8">
+                        <div class="text-gray-400 mb-4">
+                            <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                            </svg>
+                        </div>
+                        <p class="text-gray-600 mb-4">No journal entries for this date</p>
+                        <button @onclick="CreateNewEntry" 
+                                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            Create Entry
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    // Calendar state
+    private DateTime CurrentMonth { get; set; } = DateTime.Today;
+    private DateOnly? SelectedDate { get; set; }
+    private CalendarViewType CurrentView { get; set; } = CalendarViewType.Month;
+    private bool isLoading { get; set; } = false;
+    private bool ShowEntryModal { get; set; } = false;
+    private List<JournalEntry>? SelectedDateEntries { get; set; }
+
+    // Search/Filter Parameters
+    [Parameter] public string? StartDate { get; set; }
+    [Parameter] public string? EndDate { get; set; }
+    [Parameter] public string? SearchTerm { get; set; }
+    [Parameter] public int SelectedMoodId { get; set; } = 0;
+
+    // Data
+    private Dictionary<DateOnly, List<Mood>> EntryDates { get; set; } = new();
+    private Dictionary<DateOnly, string> EntryPreviews { get; set; } = new();
+
+    // Constants
+    private readonly string[] WeekdayHeaders = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+
+    public enum CalendarViewType
+    {
+        Month,
+        Week,
+        Day
+    }
+
+    public class CalendarDay
+    {
+        public DateOnly Date { get; set; }
+        public bool IsCurrentMonth { get; set; }
+        public bool IsToday { get; set; }
+        public bool HasEntry { get; set; }
+        public List<Mood> Moods { get; set; } = new();
+        public string? EntryPreview { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthStateService.CurrentUser?.Id == null)
+        {
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+
+        await LoadCalendarData();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (AuthStateService.CurrentUser?.Id == null) return;
+
+        // Reload calendar data when parameters change (for filtering)
+        await LoadCalendarData();
+    }
+
+    private List<CalendarDay> CalendarDays
+    {
+        get
+        {
+            var days = new List<CalendarDay>();
+            var firstDayOfMonth = new DateOnly(CurrentMonth.Year, CurrentMonth.Month, 1);
+            var lastDayOfMonth = firstDayOfMonth.AddMonths(1).AddDays(-1);
+            
+            var startDate = firstDayOfMonth.AddDays(-(int)firstDayOfMonth.DayOfWeek);
+            var today = DateOnly.FromDateTime(DateTime.Today);
+
+            for (var date = startDate; date <= lastDayOfMonth.AddDays(6 - (int)lastDayOfMonth.DayOfWeek); date = date.AddDays(1))
+            {
+                var hasEntry = EntryDates.ContainsKey(date);
+                days.Add(new CalendarDay
+                {
+                    Date = date,
+                    IsCurrentMonth = date.Month == CurrentMonth.Month,
+                    IsToday = date == today,
+                    HasEntry = hasEntry,
+                    Moods = hasEntry ? EntryDates[date] : new List<Mood>(),
+                    EntryPreview = hasEntry && EntryPreviews.ContainsKey(date) ? EntryPreviews[date] : null
+                });
+            }
+
+            return days;
+        }
+    }
+
+    private List<CalendarDay> WeekDays
+    {
+        get
+        {
+            var days = new List<CalendarDay>();
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            
+            // Start from Sunday of the current week
+            var startOfWeek = today.AddDays(-(int)today.DayOfWeek);
+            
+            for (var i = 0; i < 7; i++)
+            {
+                var date = startOfWeek.AddDays(i);
+                var hasEntry = EntryDates.ContainsKey(date);
+                
+                days.Add(new CalendarDay
+                {
+                    Date = date,
+                    IsCurrentMonth = date.Month == CurrentMonth.Month,
+                    IsToday = date == today,
+                    HasEntry = hasEntry,
+                    Moods = hasEntry ? EntryDates[date] : new List<Mood>(),
+                    EntryPreview = hasEntry && EntryPreviews.ContainsKey(date) ? EntryPreviews[date] : null
+                });
+            }
+
+            return days;
+        }
+    }
+
+    private async Task LoadCalendarData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            if (AuthStateService.CurrentUser?.Id == null) return;
+
+            // Calculate date range
+            var calendarStartDate = new DateOnly(CurrentMonth.Year, CurrentMonth.Month, 1);
+            var calendarEndDate = calendarStartDate.AddMonths(1).AddDays(-1);
+
+            // Apply filter date ranges if specified
+            var filterStartDate = DateOnly.FromDateTime(calendarStartDate.ToDateTime(TimeOnly.MinValue));
+            var filterEndDate = DateOnly.FromDateTime(calendarEndDate.ToDateTime(TimeOnly.MinValue));
+
+            if (!string.IsNullOrEmpty(StartDate) && DateOnly.TryParse(StartDate, out var userStartDate))
+            {
+                filterStartDate = userStartDate > filterStartDate ? userStartDate : filterStartDate;
+            }
+
+            if (!string.IsNullOrEmpty(EndDate) && DateOnly.TryParse(EndDate, out var userEndDate))
+            {
+                filterEndDate = userEndDate < filterEndDate ? userEndDate : filterEndDate;
+            }
+
+            // Build search parameters
+            var searchParams = new SearchParameters
+            {
+                SearchTerm = SearchTerm,
+                StartDate = filterStartDate,
+                EndDate = filterEndDate,
+                MoodIds = SelectedMoodId > 0 ? new List<int> { SelectedMoodId } : null
+            };
+
+            // Get filtered entries
+            var entries = await JournalEntryService.SearchEntriesAdvancedAsync(
+                AuthStateService.CurrentUser.Id, searchParams);
+
+            // Filter entries to only include those in the current calendar view
+            entries = entries.Where(e => e.EntryDate >= calendarStartDate && e.EntryDate <= calendarEndDate).ToList();
+
+            // Clear existing data
+            EntryDates.Clear();
+            EntryPreviews.Clear();
+
+            // Process entries
+            foreach (var entry in entries)
+            {
+                var moods = await JournalEntryService.GetEntryMoodsAsync(entry.Id);
+                var moodList = moods.Select(jem => jem.Mood).ToList();
+
+                if (!EntryDates.ContainsKey(entry.EntryDate))
+                {
+                    EntryDates[entry.EntryDate] = new List<Mood>();
+                }
+                EntryDates[entry.EntryDate].AddRange(moodList);
+
+                // Store entry preview (prioritize title, fallback to content preview)
+                if (!EntryPreviews.ContainsKey(entry.EntryDate))
+                {
+                    var preview = string.IsNullOrWhiteSpace(entry.Title) 
+                        ? (entry.Content.Length > 30 ? entry.Content.Substring(0, 30) + "..." : entry.Content)
+                        : entry.Title;
+                    EntryPreviews[entry.EntryDate] = preview;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Handle error appropriately
+            Console.WriteLine($"Error loading calendar data: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void PreviousMonth()
+    {
+        CurrentMonth = CurrentMonth.AddMonths(-1);
+        _ = LoadCalendarData();
+    }
+
+    private void NextMonth()
+    {
+        CurrentMonth = CurrentMonth.AddMonths(1);
+        _ = LoadCalendarData();
+    }
+
+    private void GoToToday()
+    {
+        CurrentMonth = DateTime.Today;
+        SelectedDate = DateOnly.FromDateTime(DateTime.Today);
+        _ = LoadCalendarData();
+    }
+
+    private void SetView(CalendarViewType view)
+    {
+        CurrentView = view;
+        StateHasChanged();
+    }
+
+    private async Task SelectDate(DateOnly date)
+    {
+        SelectedDate = date;
+        await LoadEntriesForDate(date);
+    }
+
+    private async Task LoadEntriesForDate(DateOnly date)
+    {
+        if (AuthStateService.CurrentUser?.Id == null) return;
+
+        try
+        {
+            var entries = await JournalEntryService.GetEntriesByDateRangeAsync(
+                AuthStateService.CurrentUser.Id, date, date);
+            
+            SelectedDateEntries = entries;
+            ShowEntryModal = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading entries for date: {ex.Message}");
+        }
+    }
+
+    private void CloseEntryModal()
+    {
+        ShowEntryModal = false;
+        SelectedDateEntries = null;
+    }
+
+    private void ViewEntry(int entryId)
+    {
+        NavigationManager.NavigateTo($"/journal/{entryId}");
+        CloseEntryModal();
+    }
+
+    private void CreateNewEntry()
+    {
+        NavigationManager.NavigateTo($"/journal/new?date={SelectedDate:yyyy-MM-dd}");
+        CloseEntryModal();
+    }
+
+    private void CreateQuickEntry()
+    {
+        var targetDate = SelectedDate ?? DateOnly.FromDateTime(DateTime.Today);
+        NavigationManager.NavigateTo($"/journal/new?date={targetDate:yyyy-MM-dd}");
+    }
+
+    private void HandleKeydown(KeyboardEventArgs e, DateOnly date)
+    {
+        if (e.Key == "Enter" || e.Key == " ")
+        {
+            _ = SelectDate(date);
+        }
+    }
+}

@@ -68,3 +68,26 @@ window.markdownToHtml = function(markdown) {
     
     return html;
 };
+
+// Theme switching function
+window.switchTheme = function(theme) {
+    console.log('Switching theme to:', theme);
+    const htmlElement = document.documentElement;
+    
+    // Set data attribute
+    htmlElement.setAttribute('data-theme', theme);
+    
+    // Set class
+    if (theme === 'dark') {
+        htmlElement.classList.add('dark-theme');
+    } else {
+        htmlElement.classList.remove('dark-theme');
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('theme', theme);
+    
+    console.log('Theme switched successfully');
+    console.log('data-theme:', htmlElement.getAttribute('data-theme'));
+    console.log('dark-theme class:', htmlElement.classList.contains('dark-theme'));
+};

@@ -31,7 +31,7 @@
     else if (filteredEntries == null || !filteredEntries.Any())
     {
         <div class="empty-state">
-            @if (string.IsNullOrWhiteSpace(searchParams.SearchTerm))
+            @if (!HasActiveFilters())
             {
                 <div class="empty-state-icon">📖</div>
                 <h3 class="empty-state-title">No journal entries yet</h3>
@@ -43,7 +43,10 @@
                 <div class="empty-state-icon">🔍</div>
                 <h3 class="empty-state-title">No results found</h3>
                 <p class="empty-state-text">No entries match your search criteria</p>
-                <button class="empty-state-btn" @onclick="ClearAllFilters">Clear All Filters</button>
+                <div class="empty-state-buttons">
+                    <button class="empty-state-btn" @onclick="ClearAllFilters">Clear All Filters</button>
+                    <button class="empty-state-btn secondary" @onclick="GoBack">Go Back</button>
+                </div>
             }
         </div>
     }
@@ -340,6 +343,11 @@
         tagInput = "";
         await LoadEntries();
     }
+
+    private async Task GoBack()
+{
+    await JS.InvokeVoidAsync("history.back");
+}
 
     private void ToggleFilters()
     {

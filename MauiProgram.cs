@@ -28,6 +28,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<DatabaseService>();
         builder.Services.AddSingleton<JournalEntryService>();
         builder.Services.AddSingleton<ToastService>();
+        builder.Services.AddSingleton<ThemeService>();
 
 #if DEBUG
         builder.Services.AddBlazorWebViewDeveloperTools();

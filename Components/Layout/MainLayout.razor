@@ -1,27 +1,30 @@
 @inherits LayoutComponentBase
 @inject NavigationManager NavigationManager
 @inject ToastService ToastService
+@inject ThemeService ThemeService
 
-@if (ShouldShowSidebar)
-{
-    <div class="page">
-        <div class="sidebar">
-            <NavMenu />
+<CascadingValue Value="@ThemeService.IsDarkMode" Name="IsDarkTheme">
+    @if (ShouldShowSidebar)
+    {
+        <div class="page @(ThemeService.IsDarkMode ? "dark-theme" : "light-theme")">
+            <div class="sidebar">
+                <NavMenu />
+            </div>
+
+            <main>
+                <article class="content px-4">
+                    @Body
+                </article>
+            </main>
         </div>
-
-        <main>
-            <article class="content px-4">
-                @Body
-            </article>
-        </main>
-    </div>
-}
-else
-{
-    <div class="page-no-sidebar">
-        @Body
-    </div>
-}
+    }
+    else
+    {
+        <div class="page-no-sidebar @(ThemeService.IsDarkMode ? "dark-theme" : "light-theme")">
+            @Body
+        </div>
+    }
+</CascadingValue>
 
 <ToastNotification Show="@showToast" Type="@toastType" Title="@toastTitle" Message="@toastMessage" />
 
@@ -37,12 +40,18 @@ else
     {
         NavigationManager.LocationChanged += OnLocationChanged;
         ToastService.OnShow += HandleToast;
+        ThemeService.OnThemeChanged += HandleThemeChanged;
         UpdateSidebarVisibility();
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         UpdateSidebarVisibility();
+        StateHasChanged();
+    }
+
+    private void HandleThemeChanged(bool isDark)
+    {
         StateHasChanged();
     }
 
@@ -65,5 +74,6 @@ else
     {
         NavigationManager.LocationChanged -= OnLocationChanged;
         ToastService.OnShow -= HandleToast;
+        ThemeService.OnThemeChanged -= HandleThemeChanged;
     }
 }

@@ -145,6 +145,26 @@
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
 }
 
+.empty-state-btn.secondary {
+  background: transparent;
+  color: #667eea;
+  border: 2px solid #667eea;
+  box-shadow: none;
+}
+
+.empty-state-btn.secondary:hover {
+  background: rgba(102, 126, 234, 0.1);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.empty-state-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 .search-filter-container {
   display: flex;
   flex-direction: column;
@@ -702,6 +722,87 @@
   50% {
     transform: translateY(-10px);
   }
+}
+
+/* Dark theme support */
+[data-theme="dark"] .journal-list-container {
+  background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .journal-header {
+  background: var(--card-bg);
+  border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .journal-title {
+  background: linear-gradient(135deg, #60a5fa, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+[data-theme="dark"] .search-filters-section {
+  background: var(--card-bg);
+  border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .search-filters-header h3 {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .toggle-filters-btn {
+  background: rgba(96, 165, 250, 0.1);
+  color: #60a5fa;
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+[data-theme="dark"] .toggle-filters-btn:hover {
+  background: rgba(96, 165, 250, 0.2);
+  border-color: rgba(96, 165, 250, 0.5);
+}
+
+[data-theme="dark"] .filter-group h4 {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .date-input-wrapper label {
+  color: var(--text-tertiary);
+}
+
+[data-theme="dark"] .date-input {
+  background: var(--bg-tertiary);
+  border-color: var(--border-primary);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .date-input:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+}
+
+[data-theme="dark"] .mood-checkbox {
+  border-color: var(--border-primary);
+  background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .mood-checkbox:hover {
+  border-color: #60a5fa;
+  background: rgba(96, 165, 250, 0.05);
+}
+
+[data-theme="dark"] .mood-checkbox-label {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .tag-input {
+  background: var(--bg-tertiary);
+  border-color: var(--border-primary);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .tag-input:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
 }
 
 /* Responsive Design */

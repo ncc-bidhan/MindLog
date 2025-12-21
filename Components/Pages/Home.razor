@@ -23,13 +23,13 @@
 
 @if (AuthStateService.IsAuthenticated)
 {
-    <h1>Welcome to MindLog, @AuthStateService.CurrentUser?.Username!</h1>
+    <div class="dashboard-container">
+        <h1 class="dashboard-title">Welcome to MindLog, @AuthStateService.CurrentUser?.Username!</h1>
 
-    <p>Your personal journal and note-taking application.</p>
+        <p class="dashboard-subtitle">Your personal journal and note-taking application.</p>
 
-    <div class="row mt-4">
-        <div class="col-md-12">
-            <div class="card">
+        <div class="dashboard-content mt-4">
+            <div class="dashboard-card">
                 <div class="card-body">
                     <h5 class="card-title">Dashboard</h5>
                     <p class="card-text">Welcome back! Your journal entries will appear here.</p>

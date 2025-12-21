@@ -360,6 +360,55 @@
     align-items: center;
 }
 
+/* Dark theme support */
+[data-theme="dark"] .mood-positive {
+    background: linear-gradient(135deg, #064e3b, #065f46);
+    color: #86efac;
+    border-color: #047857;
+}
+
+[data-theme="dark"] .mood-neutral {
+    background: linear-gradient(135deg, #1f2937, #111827);
+    color: #e5e7eb;
+    border-color: #4b5563;
+}
+
+[data-theme="dark"] .mood-negative {
+    background: linear-gradient(135deg, #7f1d1d, #991b1b);
+    color: #fca5a5;
+    border-color: #dc2626;
+}
+
+[data-theme="dark"] .journal-content {
+    background: var(--card-bg);
+    border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .prose {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .prose h1,
+[data-theme="dark"] .prose h2,
+[data-theme="dark"] .prose h3 {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .prose p {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .prose code {
+    background: var(--bg-tertiary);
+    color: #fbbf24;
+    border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .prose blockquote {
+    color: var(--text-tertiary);
+    border-color: var(--border-primary);
+}
+
 /* Responsive improvements */
 @media (max-width: 768px) {
     .prose {

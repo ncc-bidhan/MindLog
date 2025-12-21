@@ -1,0 +1,26 @@
+@inject ThemeService ThemeService
+
+<CascadingValue Value="@ThemeService.IsDarkMode" Name="IsDarkTheme">
+    @ChildContent
+</CascadingValue>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    protected override void OnInitialized()
+    {
+        ThemeService.OnThemeChanged += HandleThemeChanged;
+        base.OnInitialized();
+    }
+
+    private void HandleThemeChanged(bool isDark)
+    {
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= HandleThemeChanged;
+    }
+}

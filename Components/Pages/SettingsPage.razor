@@ -1,0 +1,97 @@
+@page "/settings"
+@inject AuthStateService AuthStateService
+@inject NavigationManager NavigationManager
+@inject ThemeService ThemeService
+
+@implements IDisposable
+
+@if (!AuthStateService.IsAuthenticated)
+{
+    NavigationManager.NavigateTo("/login");
+}
+else
+{
+    <div class="settings-container">
+        <h1 class="settings-title">Settings</h1>
+        
+        <div class="settings-sections">
+            <!-- Appearance Section -->
+            <div class="settings-section">
+                <h2 class="section-title">Appearance</h2>
+                
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <h3 class="setting-label">Theme</h3>
+                        <p class="setting-description">Choose your preferred theme for the application</p>
+                    </div>
+                    <div class="setting-control">
+                        <div class="theme-toggle">
+                            <button class="theme-option @(ThemeService.IsDarkMode ? "" : "active")" 
+                                    @onclick="() => SetTheme(false)">
+                                <span class="theme-icon">☀️</span>
+                                <span class="theme-label">Light</span>
+                            </button>
+                            <button class="theme-option @(ThemeService.IsDarkMode ? "active" : "")" 
+                                    @onclick="() => SetTheme(true)">
+                                <span class="theme-icon">🌙</span>
+                                <span class="theme-label">Dark</span>
+                            </button>
+                        </div>
+                        <button class="debug-button" @onclick="DebugTheme">Debug Theme</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Section -->
+            <div class="settings-section">
+                <h2 class="section-title">Account</h2>
+                
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <h3 class="setting-label">User Information</h3>
+                        <p class="setting-description">Manage your account details</p>
+                    </div>
+                    <div class="setting-control">
+                        <div class="user-info">
+                            <p class="user-email">@AuthStateService.CurrentUser?.Username</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthStateService.IsAuthenticated)
+        {
+            ThemeService.OnThemeChanged += HandleThemeChanged;
+            await ThemeService.InitializeAsync();
+        }
+    }
+
+    private void HandleThemeChanged(bool isDark)
+    {
+        StateHasChanged();
+    }
+
+    private async Task SetTheme(bool isDark)
+    {
+        Console.WriteLine($"SetTheme called with isDark: {isDark}");
+        await ThemeService.SetThemeAsync(isDark);
+        Console.WriteLine($"SetTheme completed. Current theme: {ThemeService.IsDarkMode}");
+    }
+
+    private void DebugTheme()
+    {
+        var debugInfo = ThemeService.GetCurrentThemeDebug();
+        Console.WriteLine($"Debug info: {debugInfo}");
+    }
+
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= HandleThemeChanged;
+    }
+}
