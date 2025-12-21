@@ -48,13 +48,13 @@
                     <div class="form-row">
                         <div class="form-group title-group">
                             <label for="title">Title *</label>
-                            <InputText id="title" @bind-Value="entry.Title" class="form-input title-input" placeholder="Give your entry a title..." />
+                            <InputText id="title" @bind-Value="entry.Title" class="form-control" placeholder="Give your entry a title..." />
                             <ValidationMessage For="@(() => entry.Title)" />
                         </div>
                         
                         <div class="form-group date-group">
                             <label for="entryDate">Date *</label>
-                            <InputDate id="entryDate" @bind-Value="entryDate" class="form-input" />
+                            <InputDate id="entryDate" @bind-Value="entryDate" class="form-control" />
                             <ValidationMessage For="@(() => entry.EntryDate)" />
                             @if (dateConflict)
                             {
@@ -78,7 +78,7 @@
                         <div class="form-group tags-group">
                             <label for="tags">Tags</label>
                             <InputText id="tags" @bind-Value="entry.Tags" 
-                                      class="form-input" 
+                                      class="form-control" 
                                       placeholder="work, personal, health" />
                             <small class="form-help">Separate tags with commas</small>
                         </div>

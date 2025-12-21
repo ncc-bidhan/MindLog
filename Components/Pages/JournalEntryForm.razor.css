@@ -1,16 +1,29 @@
 .journal-form {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 1rem;
+  width: calc(100vw - 280px);
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 280px;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
 }
 
 .form-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e5e7eb;
+  margin: 1rem 1rem 1.5rem 1rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 1rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .header-left {
@@ -93,11 +106,13 @@
 
 .form-section,
 .content-section {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
   border-radius: 1rem;
   padding: 2rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin: 0 1rem 1.5rem 1rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 @keyframes fadeInUp {
@@ -173,29 +188,33 @@
 .form-input {
   width: 100%;
   padding: 0.75rem 1rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 10px;
+  border: 2px solid #d1d5db !important;
+  border-radius: 10px !important;
   font-size: 1rem;
-  background: rgba(255, 255, 255, 0.8);
+  background: white;
   color: #1f2937;
   font-weight: 500;
   outline: none;
   transition: all 0.3s ease;
+  box-sizing: border-box;
 }
 
 .form-input:hover {
-  border-color: #667eea;
+  border-color: #667eea !important;
 }
 
 .form-input:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-  background: white;
+  border-color: #667eea !important;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+  background: white !important;
+  outline: none;
 }
 
 .title-input {
   font-size: 1.125rem;
   font-weight: 600;
+  border: 2px solid #d1d5db !important;
+  border-radius: 10px !important;
 }
 
 .mood-group-full {
@@ -437,5 +456,47 @@
   .save-btn {
     padding: 0.625rem 1.25rem;
     font-size: 0.8rem;
+  }
+}
+
+/* Responsive layout matching JournalList */
+@media (max-width: 640px) {
+  .journal-form {
+    width: 100vw;
+    left: 0;
+  }
+
+  .form-header {
+    margin: 0.75rem;
+    padding: 1rem;
+  }
+
+  .form-section,
+  .content-section {
+    margin: 0 0.75rem 1.5rem 0.75rem;
+    padding: 1rem;
+  }
+}
+
+@media (min-width: 641px) {
+  .journal-form {
+    width: calc(100vw - 280px);
+    left: 280px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .journal-form {
+    width: calc(100vw - 320px);
+    left: 320px;
+  }
+
+  .form-header {
+    margin: 2rem 2rem 1.5rem 2rem;
+  }
+
+  .form-section,
+  .content-section {
+    margin: 0 2rem 1.5rem 2rem;
   }
 }
