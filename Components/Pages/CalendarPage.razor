@@ -147,12 +147,12 @@
         StateHasChanged();
     }
 
-    private async Task ClearFilters()
+    private void ClearFilters()
     {
         searchTerm = string.Empty;
         selectedMoodId = 0;
         startDate = null;
         endDate = null;
-        await Task.Run(() => StateHasChanged());
+        StateHasChanged();
     }
 }

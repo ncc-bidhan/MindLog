@@ -597,23 +597,44 @@
         }
     }
 
-    private void PreviousMonth()
+    private async void PreviousMonth()
     {
         CurrentMonth = CurrentMonth.AddMonths(-1);
-        _ = LoadCalendarData();
+        try
+        {
+            await LoadCalendarData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading previous month: {ex.Message}");
+        }
     }
 
-    private void NextMonth()
+    private async void NextMonth()
     {
         CurrentMonth = CurrentMonth.AddMonths(1);
-        _ = LoadCalendarData();
+        try
+        {
+            await LoadCalendarData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading next month: {ex.Message}");
+        }
     }
 
-    private void GoToToday()
+    private async void GoToToday()
     {
         CurrentMonth = DateTime.Today;
         SelectedDate = DateOnly.FromDateTime(DateTime.Today);
-        _ = LoadCalendarData();
+        try
+        {
+            await LoadCalendarData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading today: {ex.Message}");
+        }
     }
 
     private void SetView(CalendarViewType view)
@@ -670,11 +691,18 @@
         NavigationManager.NavigateTo($"/journal/new?date={targetDate:yyyy-MM-dd}");
     }
 
-    private void HandleKeydown(KeyboardEventArgs e, DateOnly date)
+    private async void HandleKeydown(KeyboardEventArgs e, DateOnly date)
     {
         if (e.Key == "Enter" || e.Key == " ")
         {
-            _ = SelectDate(date);
+            try
+            {
+                await SelectDate(date);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error selecting date: {ex.Message}");
+            }
         }
     }
 }

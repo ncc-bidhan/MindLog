@@ -1,5 +1,6 @@
 @inject IJSRuntime JSRuntime
 @inject ToastService ToastService
+@implements IDisposable
 
 <div class="markdown-editor">
     <div class="toolbar">
@@ -101,7 +102,14 @@
         WordCount = CountWords(Content);
         CharacterCount = Content.Length;
         await ContentChanged.InvokeAsync(Content);
-        await UpdatePreview();
+        try
+        {
+            await UpdatePreview();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Preview update failed: {ex.Message}");
+        }
     }
 
     private async Task UpdatePreview()
@@ -110,7 +118,14 @@
         {
             try
             {
-                RenderedContent = await JSRuntime.InvokeAsync<string>("markdownToHtml", Content);
+                if (JSRuntime != null)
+                {
+                    RenderedContent = await JSRuntime.InvokeAsync<string>("markdownToHtml", Content);
+                }
+                else
+                {
+                    RenderedContent = ConvertSimpleMarkdown(Content);
+                }
             }
             catch (Exception ex)
             {
@@ -237,4 +252,9 @@
     private void InsertCode() => InsertMarkdown("`", "`");
     private void InsertCodeBlock() => InsertMarkdown("```\n", "\n```");
     private void InsertQuote() => InsertMarkdown("> ", "");
+
+    public void Dispose()
+    {
+        // Clean up any resources if needed
+    }
 }
