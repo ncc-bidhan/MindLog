@@ -19,6 +19,11 @@
             NavigationManager.NavigateTo("/login");
         }
     }
+
+    private void NavigateToJournal()
+    {
+        NavigationManager.NavigateTo("/journal");
+    }
 }
 
 @if (AuthStateService.IsAuthenticated)
@@ -28,12 +33,15 @@
 
         <p class="dashboard-subtitle">Your personal journal and note-taking application.</p>
 
+        <!-- Streak Tracking Components -->
+        <StreakTracker />
+
         <div class="dashboard-content mt-4">
             <div class="dashboard-card">
                 <div class="card-body">
                     <h5 class="card-title">Dashboard</h5>
                     <p class="card-text">Welcome back! Your journal entries will appear here.</p>
-                    <button class="btn btn-primary">Create New Entry</button>
+                    <button class="btn btn-primary" @onclick="NavigateToJournal">Create New Entry</button>
                 </div>
             </div>
         </div>

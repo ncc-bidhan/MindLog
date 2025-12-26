@@ -13,6 +13,7 @@ namespace MindLog.Data
         public DbSet<JournalEntry> JournalEntries { get; set; }
         public DbSet<Mood> Moods { get; set; }
         public DbSet<JournalEntryMood> JournalEntryMoods { get; set; }
+        public DbSet<UserStreak> UserStreaks { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -59,6 +60,17 @@ namespace MindLog.Data
                 
                 // Ensure unique combination of entry and mood
                 entity.HasIndex(e => new { e.JournalEntryId, e.MoodId }).IsUnique();
+            });
+
+            modelBuilder.Entity<UserStreak>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasOne(e => e.User)
+                      .WithOne()
+                      .HasForeignKey<UserStreak>(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                
+                entity.HasIndex(e => e.UserId).IsUnique();
             });
 
             // Seed predefined moods

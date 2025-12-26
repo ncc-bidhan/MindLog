@@ -1,6 +1,7 @@
 @using MindLog.Models
 @inject NavigationManager NavigationManager
 @inject JournalEntryService JournalEntryService
+@inject StreakService StreakService
 @inject AuthStateService AuthStateService
 @inject ToastService ToastService
 @inject IJSRuntime JS
@@ -216,6 +217,10 @@ else
                 try
                 {
                     await JournalEntryService.DeleteEntryAsync(Id, AuthStateService.CurrentUser.Id);
+                    
+                    // Update streak after deletion
+                    await StreakService.UpdateStreakAfterDeletionAsync(AuthStateService.CurrentUser.Id);
+                    
                     ToastService.ShowSuccess("Success", ToastMessages.EntryDeleted);
                     NavigationManager.NavigateTo("/journal");
                 }

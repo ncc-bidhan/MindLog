@@ -52,6 +52,29 @@ namespace MindLog.Services
                 .ToListAsync();
         }
 
+        public async Task<PaginatedResult<JournalEntry>> GetEntriesByUserIdAsync(int userId, int pageNumber, int pageSize = 10)
+        {
+            var query = _context.JournalEntries
+                .Where(e => e.UserId == userId)
+                .OrderByDescending(e => e.EntryDate)
+                .ThenByDescending(e => e.CreatedAt);
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return new PaginatedResult<JournalEntry>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+            };
+        }
+
         public async Task<JournalEntry?> GetEntryByIdAsync(int id, int userId)
         {
             return await _context.JournalEntries
@@ -87,6 +110,9 @@ namespace MindLog.Services
                 ValidateMoods(moodIds);
                 await AddMoodsToEntryAsync(entry.Id, moodIds);
             }
+
+            // Update user streak after creating entry
+            await UpdateUserStreakAsync(entry.UserId);
 
             return entry;
         }
@@ -127,6 +153,10 @@ namespace MindLog.Services
 
             _context.JournalEntries.Remove(entry);
             await _context.SaveChangesAsync();
+            
+            // Update user streak after deleting entry
+            await UpdateUserStreakAsync(userId);
+            
             return true;
         }
 
@@ -151,6 +181,32 @@ namespace MindLog.Services
                 .OrderByDescending(e => e.EntryDate)
                 .ThenByDescending(e => e.CreatedAt)
                 .ToListAsync();
+        }
+
+        public async Task<PaginatedResult<JournalEntry>> SearchEntriesAsync(int userId, string searchTerm, int pageNumber, int pageSize = 10)
+        {
+            var query = _context.JournalEntries
+                .Where(e => e.UserId == userId && 
+                           (e.Title.Contains(searchTerm) || 
+                            e.Content.Contains(searchTerm) ||
+                            (e.Tags != null && e.Tags.Contains(searchTerm))))
+                .OrderByDescending(e => e.EntryDate)
+                .ThenByDescending(e => e.CreatedAt);
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return new PaginatedResult<JournalEntry>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+            };
         }
 
         public async Task<List<JournalEntry>> SearchEntriesAdvancedAsync(int userId, SearchParameters searchParams)
@@ -197,6 +253,64 @@ namespace MindLog.Services
                 .OrderByDescending(e => e.EntryDate)
                 .ThenByDescending(e => e.CreatedAt)
                 .ToListAsync();
+        }
+
+        public async Task<PaginatedResult<JournalEntry>> SearchEntriesAdvancedAsync(int userId, SearchParameters searchParams, int pageNumber, int pageSize = 10)
+        {
+            var query = _context.JournalEntries.Where(e => e.UserId == userId);
+
+            // Text search
+            if (!string.IsNullOrWhiteSpace(searchParams.SearchTerm))
+            {
+                query = query.Where(e => 
+                    e.Title.Contains(searchParams.SearchTerm) || 
+                    e.Content.Contains(searchParams.SearchTerm) ||
+                    (e.Tags != null && e.Tags.Contains(searchParams.SearchTerm)));
+            }
+
+            // Date range filter
+            if (searchParams.StartDate.HasValue)
+            {
+                query = query.Where(e => e.EntryDate >= searchParams.StartDate.Value);
+            }
+
+            if (searchParams.EndDate.HasValue)
+            {
+                query = query.Where(e => e.EntryDate <= searchParams.EndDate.Value);
+            }
+
+            // Mood filter
+            if (searchParams.MoodIds != null && searchParams.MoodIds.Any())
+            {
+                query = query.Where(e => e.JournalEntryMoods
+                    .Any(jem => searchParams.MoodIds.Contains(jem.MoodId)));
+            }
+
+            // Tags filter
+            if (searchParams.Tags != null && searchParams.Tags.Any())
+            {
+                foreach (var tag in searchParams.Tags)
+                {
+                    query = query.Where(e => e.Tags != null && e.Tags.Contains(tag));
+                }
+            }
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .OrderByDescending(e => e.EntryDate)
+                .ThenByDescending(e => e.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return new PaginatedResult<JournalEntry>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+            };
         }
 
 
@@ -324,6 +438,77 @@ namespace MindLog.Services
                 .OrderByDescending(e => e.EntryDate)
                 .ThenByDescending(e => e.CreatedAt)
                 .ToListAsync();
+        }
+
+        private async Task UpdateUserStreakAsync(int userId)
+        {
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Id == userId);
+            
+            if (user == null)
+                return;
+
+            var entries = await _context.JournalEntries
+                .Where(e => e.UserId == userId)
+                .OrderByDescending(e => e.EntryDate)
+                .Select(e => e.EntryDate)
+                .ToListAsync();
+
+            if (!entries.Any())
+            {
+                user.CurrentStreak = 0;
+                user.LongestStreak = Math.Max(user.LongestStreak, 0);
+                user.LastEntryDate = null;
+            }
+            else
+            {
+                var today = DateOnly.FromDateTime(DateTime.Now);
+                var yesterday = today.AddDays(-1);
+                
+                int currentStreak = 0;
+                int longestStreak = 0;
+                int tempStreak = 0;
+                
+                DateOnly? expectedDate = null;
+                
+                foreach (var entryDate in entries)
+                {
+                    if (expectedDate == null)
+                    {
+                        expectedDate = entryDate;
+                        tempStreak = 1;
+                    }
+                    else if (entryDate == expectedDate.Value.AddDays(-1))
+                    {
+                        expectedDate = entryDate;
+                        tempStreak++;
+                    }
+                    else if (entryDate < expectedDate.Value.AddDays(-1))
+                    {
+                        longestStreak = Math.Max(longestStreak, tempStreak);
+                        tempStreak = 1;
+                        expectedDate = entryDate;
+                    }
+                }
+                
+                longestStreak = Math.Max(longestStreak, tempStreak);
+                
+                // Calculate current streak based on most recent entries
+                if (entries.First() == today || entries.First() == yesterday)
+                {
+                    currentStreak = tempStreak;
+                }
+                else
+                {
+                    currentStreak = 0;
+                }
+                
+                user.CurrentStreak = currentStreak;
+                user.LongestStreak = Math.Max(user.LongestStreak, longestStreak);
+                user.LastEntryDate = entries.First();
+            }
+            
+            await _context.SaveChangesAsync();
         }
     }
 }

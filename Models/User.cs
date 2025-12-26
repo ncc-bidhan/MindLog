@@ -20,5 +20,12 @@ namespace MindLog.Models
         public string Password { get; set; } = string.Empty;
         
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+        
+        // Streak tracking properties
+        public int CurrentStreak { get; set; } = 0;
+        
+        public int LongestStreak { get; set; } = 0;
+        
+        public DateOnly? LastEntryDate { get; set; }
     }
 }

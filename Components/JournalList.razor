@@ -28,7 +28,7 @@
             <p class="loading-text">Searching...</p>
         </div>
     }
-    else if (filteredEntries == null || !filteredEntries.Any())
+    else if (paginatedEntries.TotalCount == 0)
     {
         <div class="empty-state">
             @if (!HasActiveFilters())
@@ -194,7 +194,7 @@
         <div class="journal-grid">
             @foreach (var entry in filteredEntries)
             {
-                <div class="journal-entry-card" @onclick="() => ViewEntry(entry.Id)">
+                <div class="journal-entry-card" @key="entry.Id" @onclick="() => ViewEntry(entry.Id)">
                     <div class="journal-entry-header">
                         <h3 class="journal-entry-title">@entry.Title</h3>
                         <div class="journal-entry-date">@entry.EntryDate.ToString("MMM dd, yyyy")</div>
@@ -214,26 +214,72 @@
                     </div>
                     
                     <div class="journal-entry-actions">
-                        <button class="action-btn edit" @onclick="() => EditEntry(entry.Id)" title="Edit">
+                        <button class="action-btn edit" @onclick="() => EditEntry(entry.Id)" @onclick:stopPropagation title="Edit">
                             ✏️
                         </button>
-                        <button class="action-btn delete" @onclick="() => DeleteEntry(entry.Id)" title="Delete">
+                        <button class="action-btn delete" @onclick="() => DeleteEntry(entry.Id)" @onclick:stopPropagation title="Delete">
                             🗑️
                         </button>
                     </div>
                 </div>
             }
         </div>
+
+        <!-- Pagination Controls -->
+        <div class="pagination-container">
+            <div class="pagination-info">
+                <span>Showing @((currentPage - 1) * pageSize + 1)-@(Math.Min(currentPage * pageSize, paginatedEntries.TotalCount)) of @paginatedEntries.TotalCount entries</span>
+            </div>
+            
+            <div class="pagination-controls">
+                <button type="button" class="pagination-btn" 
+                        @onclick="PreviousPage"
+                        disabled="@(currentPage <= 1)">
+                    ← Previous
+                </button>
+                
+                <div class="pagination-numbers">
+    @for (int i = 1; i <= paginatedEntries.TotalPages; i++)
+    {
+        // FIX: Create a local variable to capture the CURRENT value of i
+        int pageNumber = i; 
+
+        @if (i == 1 || i == paginatedEntries.TotalPages || (i >= currentPage - 1 && i <= currentPage + 1))
+        {
+            <button type="button" 
+                    class="pagination-number @(pageNumber == currentPage ? "active" : "")" 
+                    @onclick="() => GoToPage(pageNumber)"
+                    disabled="@(pageNumber == currentPage)">
+                @pageNumber
+            </button>
+        }
+        else if (i == currentPage - 2 || i == currentPage + 2)
+        {
+            <span class="pagination-ellipsis">...</span>
+        }
+    }
+</div>
+                
+                <button type="button" class="pagination-btn" 
+                        @onclick="NextPage"
+                        disabled="@(currentPage >= paginatedEntries.TotalPages)">
+                    Next →
+                </button>
+            </div>
+        </div>
     }
     </div>
 </div>
 
 @code {
-    private List<JournalEntry> entries = new();
+    private PaginatedResult<JournalEntry> paginatedEntries = new();
     private List<JournalEntry> filteredEntries = new();
     private bool loading = true;
     private bool isSearching = false;
     private bool showAdvancedFilters = false;
+    private bool isInSearchMode = false;
+    private int currentPage = 1;
+    private const int pageSize = 10;
     
     // Search parameters
     private SearchParameters searchParams = new();
@@ -256,23 +302,172 @@
         if (AuthStateService.CurrentUser?.Id == null)
         {
             loading = false;
+            paginatedEntries = new PaginatedResult<JournalEntry>
+            {
+                Items = new List<JournalEntry>(),
+                TotalCount = 0,
+                PageNumber = 1,
+                PageSize = pageSize,
+                TotalPages = 0
+            };
+            filteredEntries = new List<JournalEntry>();
+            currentPage = 1;
             return;
         }
 
         loading = true;
         try
         {
-            entries = await JournalEntryService.GetEntriesByUserIdAsync(AuthStateService.CurrentUser.Id);
-            filteredEntries = entries;
+            paginatedEntries = await JournalEntryService.GetEntriesByUserIdAsync(AuthStateService.CurrentUser.Id, currentPage, pageSize);
+            filteredEntries = paginatedEntries.Items;
+            StateHasChanged();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading entries: {ex.Message}");
             ToastService.ShowError("Error", "Failed to load journal entries. Please try again.");
+            paginatedEntries = new PaginatedResult<JournalEntry>
+            {
+                Items = new List<JournalEntry>(),
+                TotalCount = 0,
+                PageNumber = 1,
+                PageSize = pageSize,
+                TotalPages = 0
+            };
+            filteredEntries = new List<JournalEntry>();
+            currentPage = 1;
+            StateHasChanged();
         }
         finally
         {
             loading = false;
+        }
+    }
+
+    private async Task GoToPage(int pageNumber)
+{
+    // Clamp the page number to valid range
+    if (pageNumber < 1)
+        pageNumber = 1;
+    if (paginatedEntries.TotalPages > 0 && pageNumber > paginatedEntries.TotalPages)
+        pageNumber = paginatedEntries.TotalPages;
+
+    // Always update currentPage
+    var pageChanged = currentPage != pageNumber;
+    currentPage = pageNumber;
+
+    // ALWAYS reload data when any page button is clicked (even if same page)
+    // This eliminates Blazor change-detection flakiness
+    if (isInSearchMode || HasActiveFilters())
+    {
+        await LoadSearchResults();
+    }
+    else
+    {
+        await LoadEntries();
+    }
+
+    // Force re-render in case Blazor doesn't detect the change
+    StateHasChanged();
+}
+
+    private async Task PreviousPage()
+{
+    if (currentPage > 1)
+    {
+        currentPage--;
+        if (isInSearchMode || HasActiveFilters())
+        {
+            await LoadSearchResults();
+        }
+        else
+        {
+            await LoadEntries();
+        }
+        StateHasChanged();
+    }
+}
+
+private async Task NextPage()
+{
+    if (currentPage < paginatedEntries.TotalPages)
+    {
+        currentPage++;
+        if (isInSearchMode || HasActiveFilters())
+        {
+            await LoadSearchResults();
+        }
+        else
+        {
+            await LoadEntries();
+        }
+        StateHasChanged();
+    }
+}
+
+    private async Task LoadSearchResults()
+    {
+        if (AuthStateService.CurrentUser?.Id == null)
+        {
+            paginatedEntries = new PaginatedResult<JournalEntry>
+            {
+                Items = new List<JournalEntry>(),
+                TotalCount = 0,
+                PageNumber = 1,
+                PageSize = pageSize,
+                TotalPages = 0
+            };
+            filteredEntries = new List<JournalEntry>();
+            currentPage = 1;
+            return;
+        }
+
+        isSearching = true;
+        try
+        {
+            PaginatedResult<JournalEntry> result;
+            if (HasOnlyTextSearch())
+            {
+                result = await JournalEntryService.SearchEntriesAsync(
+                    AuthStateService.CurrentUser.Id, 
+                    searchParams.SearchTerm ?? "",
+                    currentPage,
+                    pageSize
+                );
+            }
+            else
+            {
+                result = await JournalEntryService.SearchEntriesAdvancedAsync(
+                    AuthStateService.CurrentUser.Id, 
+                    searchParams,
+                    currentPage,
+                    pageSize
+                );
+            }
+
+            paginatedEntries = result;
+            filteredEntries = result.Items;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading search results: {ex.Message}");
+            ToastService.ShowError("Error", "Failed to load search results. Please try again.");
+            paginatedEntries = new PaginatedResult<JournalEntry>
+            {
+                Items = new List<JournalEntry>(),
+                TotalCount = 0,
+                PageNumber = 1,
+                PageSize = pageSize,
+                TotalPages = 0
+            };
+            filteredEntries = new List<JournalEntry>();
+            currentPage = 1;
+            StateHasChanged();
+        }
+        finally
+        {
+            isSearching = false;
         }
     }
 
@@ -302,38 +497,13 @@
             return;
         }
 
-        isSearching = true;
-        try
+        currentPage = 1;
+        isInSearchMode = true;
+        await LoadSearchResults();
+        
+        if (!filteredEntries.Any())
         {
-            // Use basic search for text-only searches, advanced search for filters
-            if (HasOnlyTextSearch())
-            {
-                filteredEntries = await JournalEntryService.SearchEntriesAsync(
-                    AuthStateService.CurrentUser.Id, 
-                    searchParams.SearchTerm ?? ""
-                );
-            }
-            else
-            {
-                filteredEntries = await JournalEntryService.SearchEntriesAdvancedAsync(
-                    AuthStateService.CurrentUser.Id, 
-                    searchParams
-                );
-            }
-            
-            if (!filteredEntries.Any())
-            {
-                ToastService.ShowInfo("No Results", "No entries found matching your search criteria");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error searching entries: {ex.Message}");
-            ToastService.ShowError("Error", "Failed to search entries. Please try again.");
-        }
-        finally
-        {
-            isSearching = false;
+            ToastService.ShowInfo("No Results", "No entries found matching your search criteria");
         }
     }
 
@@ -341,13 +511,15 @@
     {
         searchParams = new SearchParameters();
         tagInput = "";
+        currentPage = 1;
+        isInSearchMode = false;
         await LoadEntries();
     }
 
     private async Task GoBack()
-{
-    await JS.InvokeVoidAsync("history.back");
-}
+    {
+        await JS.InvokeVoidAsync("history.back");
+    }
 
     private void ToggleFilters()
     {
@@ -372,7 +544,6 @@
                (searchParams.Tags?.Any() != true);
     }
 
-    // Mood filtering methods
     private void ToggleMood(int moodId)
     {
         searchParams.MoodIds ??= new List<int>();
@@ -396,7 +567,6 @@
         return searchParams.MoodIds?.Contains(moodId) == true;
     }
 
-    // Tags filtering methods
     private async Task HandleTagKeyPress(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
@@ -466,7 +636,30 @@
                 {
                     await JournalEntryService.DeleteEntryAsync(id, AuthStateService.CurrentUser.Id);
                     ToastService.ShowSuccess("Success", ToastMessages.EntryDeleted);
-                    await LoadEntries();
+                    
+                    if (isInSearchMode || HasActiveFilters())
+                    {
+                        await LoadSearchResults();
+                        if (!filteredEntries.Any() && currentPage > 1)
+                        {
+                            currentPage--;
+                            await LoadSearchResults();
+                        }
+                    }
+                    else
+                    {
+                        await LoadEntries();
+                        if (!filteredEntries.Any() && currentPage > 1)
+                        {
+                            currentPage--;
+                            await LoadEntries();
+                        }
+                    }
+                    
+                    if (currentPage < 1)
+                    {
+                        currentPage = 1;
+                    }
                 }
                 catch (Exception ex)
                 {

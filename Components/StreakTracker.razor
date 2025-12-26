@@ -1,0 +1,102 @@
+@inject StreakService StreakService
+@inject AuthStateService AuthStateService
+
+@if (userStreak != null)
+{
+    <div class="streak-container">
+        <h3 class="streak-title">🔥 Your Journaling Streak</h3>
+        
+        <div class="streak-stats">
+            <div class="streak-card current-streak">
+                <div class="streak-number">@userStreak.CurrentStreak</div>
+                <div class="streak-label">Current Streak</div>
+                <div class="streak-unit">days</div>
+            </div>
+            
+            <div class="streak-card longest-streak">
+                <div class="streak-number">@userStreak.LongestStreak</div>
+                <div class="streak-label">Longest Streak</div>
+                <div class="streak-unit">days</div>
+            </div>
+            
+            <div class="streak-card total-entries">
+                <div class="streak-number">@userStreak.TotalEntries</div>
+                <div class="streak-label">Total Entries</div>
+                <div class="streak-unit">journal entries</div>
+            </div>
+            
+            <div class="streak-card missed-days">
+                <div class="streak-number">@userStreak.MissedDays</div>
+                <div class="streak-label">Missed Days</div>
+                <div class="streak-unit">days without entries</div>
+            </div>
+        </div>
+        
+        @if (userStreak.CurrentStreak > 0)
+        {
+            <div class="streak-encouragement">
+                @if (userStreak.CurrentStreak == 1)
+                {
+                    <p>Great start! Keep it going! 💪</p>
+                }
+                else if (userStreak.CurrentStreak < 7)
+                {
+                    <p>You're on a roll! Keep up the great work! 🌟</p>
+                }
+                else if (userStreak.CurrentStreak < 30)
+                {
+                    <p>Amazing consistency! You're building a great habit! 🎯</p>
+                }
+                else if (userStreak.CurrentStreak < 100)
+                {
+                    <p>Incredible dedication! You're a journaling master! 🏆</p>
+                }
+                else
+                {
+                    <p>Legendary! You've reached journaling excellence! 👑</p>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="streak-motivation">
+                <p>Start your streak today! Make an entry and begin your journey. 🌱</p>
+            </div>
+        }
+        
+        @if (userStreak.LastEntryDate.HasValue)
+        {
+            <div class="last-entry">
+                <small>Last entry: @userStreak.LastEntryDate.Value.ToString("MMMM d, yyyy")</small>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private UserStreak? userStreak;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserStreak();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadUserStreak();
+    }
+
+    private async Task LoadUserStreak()
+    {
+        if (AuthStateService.IsAuthenticated && AuthStateService.CurrentUser != null)
+        {
+            userStreak = await StreakService.GetUserStreakAsync(AuthStateService.CurrentUser.Id);
+        }
+    }
+
+    public async Task RefreshStreak()
+    {
+        await LoadUserStreak();
+        StateHasChanged();
+    }
+}

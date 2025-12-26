@@ -4,6 +4,7 @@
 @using System.ComponentModel.DataAnnotations
 @inject NavigationManager NavigationManager
 @inject JournalEntryService JournalEntryService
+@inject StreakService StreakService
 @inject AuthStateService AuthStateService
 
 <PageTitle>@(IsEditing ? "Edit Entry" : "New Entry") - MindLog</PageTitle>
@@ -218,6 +219,10 @@
             }
             if (IsEditing) await JournalEntryService.UpdateEntryAsync(entry, selectedMoodIds);
             else await JournalEntryService.CreateEntryAsync(entry, selectedMoodIds);
+            
+            // Update streak after successful save
+            await StreakService.UpdateStreakAfterEntryAsync(AuthStateService.CurrentUser.Id, entry.EntryDate);
+            
             showSuccessMessage = true;
             await Task.Delay(1000);
             NavigationManager.NavigateTo($"/journal/{entry.Id}");

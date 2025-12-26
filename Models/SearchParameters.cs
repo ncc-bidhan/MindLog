@@ -7,5 +7,7 @@ namespace MindLog.Models
         public DateOnly? EndDate { get; set; }
         public List<int>? MoodIds { get; set; }
         public List<string>? Tags { get; set; }
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 10;
     }
 }
