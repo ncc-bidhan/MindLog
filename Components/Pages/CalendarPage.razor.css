@@ -1,221 +1,415 @@
 /* Calendar Page Styles */
 
 .calendar-page {
-    max-width: 100%;
-    margin: 0 auto;
-    padding: 1rem;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 1rem;
 }
 
 .page-header {
-    text-align: center;
-    margin-bottom: 2rem;
+  text-align: center;
+  margin-bottom: 2rem;
 }
 
 .page-header h1 {
-    font-weight: 700;
-    color: #1f2937;
-    margin-bottom: 0.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
 }
 
 .page-header p {
-    color: #6b7280;
-    font-size: 1.125rem;
+  color: #6b7280;
+  font-size: 1.125rem;
 }
 
 /* Search and Filter Section */
 .search-filter-section {
-    background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
-    border: 1px solid #e5e7eb;
-    transition: all 0.3s ease;
+  background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+  border: 1px solid #e5e7eb;
+  transition: all 0.3s ease;
 }
 
 .search-filter-section:hover {
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
 }
 
 .search-filter-section .form-group {
-    margin-bottom: 1rem;
+  margin-bottom: 1rem;
 }
 
 .search-filter-section label {
-    font-weight: 500;
-    color: #374151;
-    font-size: 0.875rem;
-    display: block;
-    margin-bottom: 0.25rem;
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.875rem;
+  display: block;
+  margin-bottom: 0.25rem;
 }
 
 .search-filter-section input,
 .search-filter-section select {
-    transition: all 0.2s ease;
-    border: 1px solid #d1d5db;
-    background-color: white;
+  transition: all 0.2s ease;
+  border: 1px solid #d1d5db;
+  background-color: white;
 }
 
 .search-filter-section input:focus,
 .search-filter-section select:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  outline: none;
 }
 
 .search-filter-section button {
-    transition: all 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .search-filter-section button:hover {
-    transform: translateY(-1px);
+  transform: translateY(-1px);
 }
 
 /* Search Input Icon */
 .search-filter-section .relative .absolute {
-    pointer-events: none;
+  pointer-events: none;
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .calendar-page {
-        padding: 0.5rem;
-    }
-    
-    .page-header {
-        margin-bottom: 1rem;
-        text-align: left;
-    }
-    
-    .page-header h1 {
-        font-size: 1.5rem;
-    }
-    
-    .page-header p {
-        font-size: 0.875rem;
-    }
-    
-    .search-filter-section {
-        padding: 1rem;
-    }
-    
-    .search-filter-section .flex-wrap {
-        gap: 1rem;
-    }
-    
-    .search-filter-section .flex-wrap > div {
-        flex: 1 1 100%;
-        min-width: unset;
-    }
-    
-    .search-filter-section button {
-        width: 100%;
-        margin-top: 0.5rem;
-    }
+  .calendar-page {
+    padding: 0.5rem;
+  }
+
+  .page-header {
+    margin-bottom: 1rem;
+    text-align: left;
+  }
+
+  .page-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .page-header p {
+    font-size: 0.875rem;
+  }
+
+  .search-filter-section {
+    padding: 1rem;
+  }
+
+  .search-filter-section .flex-wrap {
+    gap: 1rem;
+  }
+
+  .search-filter-section .flex-wrap > div {
+    flex: 1 1 100%;
+    min-width: unset;
+  }
+
+  .search-filter-section button {
+    width: 100%;
+    margin-top: 0.5rem;
+  }
 }
 
 @media (max-width: 480px) {
-    .search-filter-section {
-        padding: 0.75rem;
-    }
-    
-    .search-filter-section .flex-wrap {
-        gap: 0.75rem;
-    }
-    
-    .search-filter-section input,
-    .search-filter-section select {
-        font-size: 0.875rem;
-        padding: 0.5rem 0.75rem;
-    }
-    
-    .search-filter-section label {
-        font-size: 0.75rem;
-        margin-bottom: 0.125rem;
-    }
+  .search-filter-section {
+    padding: 0.75rem;
+  }
+
+  .search-filter-section .flex-wrap {
+    gap: 0.75rem;
+  }
+
+  .search-filter-section input,
+  .search-filter-section select {
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .search-filter-section label {
+    font-size: 0.75rem;
+    margin-bottom: 0.125rem;
+  }
 }
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {
-    .search-filter-section {
-        border-width: 2px;
-        border-color: #000;
-    }
-    
-    .search-filter-section input,
-    .search-filter-section select {
-        border-width: 2px;
-        border-color: #000;
-    }
-    
-    .search-filter-section input:focus,
-    .search-filter-section select:focus {
-        outline-width: 3px;
-        outline-color: #000;
-    }
+  .search-filter-section {
+    border-width: 2px;
+    border-color: #000;
+  }
+
+  .search-filter-section input,
+  .search-filter-section select {
+    border-width: 2px;
+    border-color: #000;
+  }
+
+  .search-filter-section input:focus,
+  .search-filter-section select:focus {
+    outline-width: 3px;
+    outline-color: #000;
+  }
 }
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
-    .search-filter-section,
-    .search-filter-section:hover,
-    .search-filter-section input,
-    .search-filter-section select,
-    .search-filter-section button {
-        transition: none;
-        transform: none;
-    }
+  .search-filter-section,
+  .search-filter-section:hover,
+  .search-filter-section input,
+  .search-filter-section select,
+  .search-filter-section button {
+    transition: none;
+    transform: none;
+  }
 }
 
 /* Dark theme support */
-[data-theme="dark"] .page-header h1 {
-    color: var(--text-primary);
+.dark-theme .page-header h1 {
+  color: var(--text-primary);
 }
 
-[data-theme="dark"] .page-header p {
-    color: var(--text-tertiary);
+.dark-theme .page-header p {
+  color: var(--text-tertiary);
 }
 
-[data-theme="dark"] .search-filter-section {
-    background-color: var(--card-bg);
-    border-color: var(--border-primary);
+.dark-theme .search-filter-section {
+  background-color: var(--card-bg);
+  border-color: var(--border-primary);
 }
 
-[data-theme="dark"] .search-filter-section label {
-    color: var(--text-secondary);
+.dark-theme .search-filter-section label {
+  color: var(--text-secondary);
 }
 
-[data-theme="dark"] .search-filter-section input,
-[data-theme="dark"] .search-filter-section select {
-    background-color: var(--bg-tertiary);
-    border-color: var(--border-primary);
-    color: var(--text-primary);
+.dark-theme .search-filter-section input,
+.dark-theme .search-filter-section select {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-primary);
+  color: var(--text-primary);
 }
 
-[data-theme="dark"] .search-filter-section input:focus,
-[data-theme="dark"] .search-filter-section select:focus {
-    border-color: #60a5fa;
-    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+.dark-theme .search-filter-section input:focus,
+.dark-theme .search-filter-section select:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
 }
 
-[data-theme="dark"] .search-filter-section button {
-    background-color: var(--bg-tertiary);
-    color: var(--text-primary);
-    border-color: var(--border-primary);
+.dark-theme .search-filter-section button {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-primary);
 }
 
-[data-theme="dark"] .search-filter-section button:hover {
-    background-color: var(--border-primary);
+.dark-theme .search-filter-section button:hover {
+  background-color: var(--border-primary);
+}
+
+/* Additional dark mode overrides for Tailwind classes */
+.dark-theme .page-header h1.text-gray-800 {
+  color: var(--text-primary) !important;
+}
+
+.dark-theme .page-header p.text-gray-600 {
+  color: var(--text-tertiary) !important;
+}
+
+.dark-theme .search-filter-section.bg-white {
+  background-color: var(--card-bg) !important;
+}
+
+.dark-theme .search-filter-section label.text-gray-700 {
+  color: var(--text-secondary) !important;
+}
+
+.dark-theme .search-filter-section input.border-gray-300,
+.dark-theme .search-filter-section select.border-gray-300 {
+  border-color: var(--border-primary) !important;
+}
+
+.dark-theme .search-filter-section input[type="date"] {
+  color-scheme: dark !important;
+}
+
+.dark-theme
+  .search-filter-section
+  input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+.dark-theme
+  .search-filter-section
+  input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  filter: invert(0.8);
+}
+
+.dark-theme .search-filter-section button.text-gray-600 {
+  color: var(--text-secondary) !important;
+}
+
+.dark-theme .search-filter-section button.text-gray-600:hover {
+  color: var(--text-primary) !important;
+}
+
+.dark-theme .search-filter-section button.hover\:text-gray-800:hover {
+  color: var(--text-primary) !important;
+}
+
+/* Fix the main search-filter-section container background */
+.dark-theme .search-filter-section {
+  background-color: var(--card-bg) !important;
+  border-color: var(--border-primary) !important;
+}
+
+.dark-theme .search-filter-section.bg-white {
+  background-color: var(--card-bg) !important;
+}
+
+.dark-theme .search-filter-section.mb-6 {
+  background-color: var(--card-bg) !important;
+}
+
+.dark-theme .search-filter-section.rounded-lg {
+  background-color: var(--card-bg) !important;
+}
+
+.dark-theme .search-filter-section.shadow {
+  background-color: var(--card-bg) !important;
+}
+
+.dark-theme .search-filter-section.p-4 {
+  background-color: var(--card-bg) !important;
+}
+
+.dark-theme .search-filter-section.mb-6.bg-white.rounded-lg.shadow.p-4 {
+  background-color: var(--card-bg) !important;
+  border-color: var(--border-primary) !important;
+}
+
+/* Higher specificity selectors */
+.page.dark-theme .search-filter-section {
+  background-color: var(--card-bg) !important;
+  border-color: var(--border-primary) !important;
+}
+
+.page.dark-theme .search-filter-section.bg-white {
+  background-color: var(--card-bg) !important;
+}
+
+.page.dark-theme .search-filter-section.mb-6.bg-white.rounded-lg.shadow.p-4 {
+  background-color: var(--card-bg) !important;
+  border-color: var(--border-primary) !important;
+}
+
+.page-no-sidebar.dark-theme .search-filter-section {
+  background-color: var(--card-bg) !important;
+  border-color: var(--border-primary) !important;
+}
+
+.page-no-sidebar.dark-theme .search-filter-section.bg-white {
+  background-color: var(--card-bg) !important;
+}
+
+.page-no-sidebar.dark-theme
+  .search-filter-section.mb-6.bg-white.rounded-lg.shadow.p-4 {
+  background-color: var(--card-bg) !important;
+  border-color: var(--border-primary) !important;
+}
+
+/* Specific overrides for search input elements */
+.dark-theme .search-filter-section input[type="text"],
+.dark-theme .search-filter-section input[type="date"],
+.dark-theme .search-filter-section select {
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--border-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark-theme .search-filter-section input[type="text"]:focus,
+.dark-theme .search-filter-section input[type="date"]:focus,
+.dark-theme .search-filter-section select:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark-theme .search-filter-section input[type="text"]::placeholder {
+  color: var(--text-tertiary) !important;
+}
+
+/* Fix focus ring colors in dark mode */
+.dark-theme .search-filter-section input.focus\:ring-2,
+.dark-theme .search-filter-section select.focus\:ring-2 {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+.dark-theme .search-filter-section input.focus\:ring-blue-500,
+.dark-theme .search-filter-section select.focus\:ring-blue-500 {
+  border-color: #3b82f6 !important;
+}
+
+/* Fix select option text color */
+.dark-theme .search-filter-section select option {
+  background-color: var(--card-bg);
+  color: var(--text-primary);
+}
+
+/* Catch-all for any remaining white backgrounds in search section */
+.dark-theme .search-filter-section [class*="bg-white"] {
+  background-color: var(--card-bg) !important;
+}
+
+.dark-theme .search-filter-section input.bg-white {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.dark-theme .search-filter-section select.bg-white {
+  background-color: var(--bg-tertiary) !important;
+}
+
+/* Catch-all for gray text */
+.dark-theme .search-filter-section [class*="text-gray-800"],
+.dark-theme .search-filter-section [class*="text-gray-700"] {
+  color: var(--text-primary) !important;
+}
+
+.dark-theme .search-filter-section [class*="text-gray-600"],
+.dark-theme .search-filter-section [class*="text-gray-500"],
+.dark-theme .search-filter-section [class*="text-gray-400"] {
+  color: var(--text-secondary) !important;
+}
+
+/* Catch-all for gray borders */
+.dark-theme .search-filter-section [class*="border-gray-200"],
+.dark-theme .search-filter-section [class*="border-gray-300"] {
+  border-color: var(--border-primary) !important;
+}
+
+/* Fix input placeholders in dark mode */
+.dark-theme .search-filter-section input::placeholder {
+  color: var(--text-tertiary) !important;
+}
+
+/* Fix SVG icon colors in dark mode */
+.dark-theme .search-filter-section svg.text-gray-400 {
+  color: var(--text-tertiary) !important;
+}
+
+.dark-theme .search-filter-section .absolute svg {
+  color: var(--text-tertiary) !important;
 }
 
 /* Print styles */
 @media print {
-    .search-filter-section {
-        display: none;
-    }
-    
-    .page-header {
-        margin-bottom: 1rem;
-    }
-    
-    .page-header p {
-        display: none;
-    }
+  .search-filter-section {
+    display: none;
+  }
+
+  .page-header {
+    margin-bottom: 1rem;
+  }
+
+  .page-header p {
+    display: none;
+  }
 }
