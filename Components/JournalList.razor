@@ -3,271 +3,315 @@
 @inject AuthStateService AuthStateService
 @inject ToastService ToastService
 @inject IJSRuntime JS
+@inject PdfExportService PdfExportService
 
 <div class="journal-list-container">
     <div class="journal-header">
         <div class="flex justify-between items-center mb-6">
             <h2 class="journal-title">My Journal</h2>
-            <button class="new-entry-btn" @onclick="CreateNewEntry">
-                <span class="text-lg">+</span>
-                New Entry
-            </button>
-        </div>
-
-    @if (loading)
-    {
-        <div class="loading-container">
-            <div class="loading-spinner"></div>
-            <p class="loading-text">Loading entries...</p>
-        </div>
-    }
-    else if (isSearching)
-    {
-        <div class="loading-container">
-            <div class="loading-spinner"></div>
-            <p class="loading-text">Searching...</p>
-        </div>
-    }
-    else if (paginatedEntries.TotalCount == 0)
-    {
-        <div class="empty-state">
-            @if (!HasActiveFilters())
-            {
-                <div class="empty-state-icon">📖</div>
-                <h3 class="empty-state-title">No journal entries yet</h3>
-                <p class="empty-state-text">Start documenting your thoughts and experiences</p>
-                <button class="empty-state-btn" @onclick="CreateNewEntry">Write Your First Entry</button>
-            }
-            else
-            {
-                <div class="empty-state-icon">🔍</div>
-                <h3 class="empty-state-title">No results found</h3>
-                <p class="empty-state-text">No entries match your search criteria</p>
-                <div class="empty-state-buttons">
-                    <button class="empty-state-btn" @onclick="ClearAllFilters">Clear All Filters</button>
-                    <button class="empty-state-btn secondary" @onclick="GoBack">Go Back</button>
-                </div>
-            }
-        </div>
-    }
-    else
-    {
-        <div class="search-filters-section">
-            <div class="search-filters-header">
-                <h3>Search & Filter</h3>
-                <button class="toggle-filters-btn" @onclick="ToggleFilters">
-                    @(showAdvancedFilters ? "Hide Filters" : "Show Filters")
+            <div class="header-buttons">
+                <button class="export-pdf-btn" @onclick="ExportToPdf" disabled="@isExporting">
+                    <span>@(isExporting ? "Exporting..." : "📄 Export to PDF")</span>
+                </button>
+                <button class="new-entry-btn" @onclick="CreateNewEntry">
+                    <span class="text-lg">+</span>
+                    New Entry
                 </button>
             </div>
+        </div>
 
-            <!-- Basic Search -->
-            <div class="search-filter-container">
-                <div class="search-input-wrapper">
-                    <input type="text" 
-                           @bind="searchParams.SearchTerm" 
-                           @oninput="HandleSearchInput" 
-                           @onkeypress="HandleSearchKeyPress"
-                           placeholder="Search by title, content, or tags..." 
-                           class="search-input" />
-                    <span class="search-icon">🔍</span>
+        <!-- PDF Export Date Range Selection -->
+        @if (showPdfExportOptions)
+        {
+            <div class="pdf-export-options">
+                <div class="pdf-export-header">
+                    <h4>Export Journal Entries to PDF</h4>
+                    <button class="close-export-btn" @onclick="TogglePdfExportOptions">×</button>
                 </div>
-                
-                <button class="search-btn" @onclick="PerformAdvancedSearch" disabled="@isSearching">
-                    @(isSearching ? "Searching..." : "Search")
-                </button>
-                
-                <button class="clear-search-btn" @onclick="ClearAllFilters">
-                    Clear All
-                </button>
+                <div class="pdf-export-controls">
+                    <div class="export-date-inputs">
+                        <div class="export-date-input">
+                            <label for="pdf-start-date">From Date:</label>
+                            <input type="date" 
+                                   id="pdf-start-date"
+                                   @bind="pdfExportStartDate" 
+                                   class="export-date-picker" />
+                        </div>
+                        <div class="export-date-input">
+                            <label for="pdf-end-date">To Date:</label>
+                            <input type="date" 
+                                   id="pdf-end-date"
+                                   @bind="pdfExportEndDate" 
+                                   class="export-date-picker" />
+                        </div>
+                    </div>
+                    <div class="export-actions">
+                        <button class="export-cancel-btn" @onclick="TogglePdfExportOptions">Cancel</button>
+                        <button class="export-confirm-btn" @onclick="ConfirmPdfExport" disabled="@isExporting">
+                            @(isExporting ? "Exporting..." : "Export by Date Range")
+                        </button>
+                        <button class="export-confirm-btn export-all-btn" @onclick="ExportAllJournals" disabled="@isExporting">
+                            @(isExporting ? "Exporting..." : "Export All")
+                        </button>
+                    </div>
+                </div>
             </div>
+        }
 
-            <!-- Advanced Filters -->
-            @if (showAdvancedFilters)
-            {
-                <div class="advanced-filters">
-                    <!-- Date Range Filter -->
-                    <div class="filter-group">
-                        <h4>Date Range</h4>
-                        <div class="date-range-container">
-                            <div class="date-input-wrapper">
-                                <label for="start-date">From:</label>
-                                <input type="date" 
-                                       id="start-date"
-                                       @bind="searchParams.StartDate" 
-                                       class="date-input" />
-                            </div>
-                            <div class="date-input-wrapper">
-                                <label for="end-date">To:</label>
-                                <input type="date" 
-                                       id="end-date"
-                                       @bind="searchParams.EndDate" 
-                                       class="date-input" />
-                            </div>
-                        </div>
+        @if (loading)
+        {
+            <div class="loading-container">
+                <div class="loading-spinner"></div>
+                <p class="loading-text">Loading entries...</p>
+            </div>
+        }
+        else if (isSearching)
+        {
+            <div class="loading-container">
+                <div class="loading-spinner"></div>
+                <p class="loading-text">Searching...</p>
+            </div>
+        }
+        else if (paginatedEntries.TotalCount == 0)
+        {
+            <div class="empty-state">
+                @if (!HasActiveFilters())
+                {
+                    <div class="empty-state-icon">📖</div>
+                    <h3 class="empty-state-title">No journal entries yet</h3>
+                    <p class="empty-state-text">Start documenting your thoughts and experiences</p>
+                    <button class="empty-state-btn" @onclick="CreateNewEntry">Write Your First Entry</button>
+                }
+                else
+                {
+                    <div class="empty-state-icon">🔍</div>
+                    <h3 class="empty-state-title">No results found</h3>
+                    <p class="empty-state-text">No entries match your search criteria</p>
+                    <div class="empty-state-buttons">
+                        <button class="empty-state-btn" @onclick="ClearAllFilters">Clear All Filters</button>
+                        <button class="empty-state-btn secondary" @onclick="GoBack">Go Back</button>
                     </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="search-filters-section">
+                <div class="search-filters-header">
+                    <h3>Search & Filter</h3>
+                    <button class="toggle-filters-btn" @onclick="ToggleFilters">
+                        @(showAdvancedFilters ? "Hide Filters" : "Show Filters")
+                    </button>
+                </div>
 
-                    <!-- Mood Filter -->
-                    <div class="filter-group">
-                        <h4>Moods</h4>
-                        <div class="mood-filters">
-                            @foreach (var mood in availableMoods)
-                            {
-                                <label class="mood-checkbox">
-                                    <input type="checkbox" 
-                                           @onchange="() => ToggleMood(mood.Id)"
-                                           checked="@IsMoodSelected(mood.Id)" />
-                                    <span class="mood-checkbox-icon">@mood.Icon</span>
-                                    <span class="mood-checkbox-label">@mood.Name</span>
-                                </label>
-                            }
-                        </div>
+                <!-- Basic Search -->
+                <div class="search-filter-container">
+                    <div class="search-input-wrapper">
+                        <input type="text" 
+                               @bind="searchParams.SearchTerm" 
+                               @oninput="HandleSearchInput" 
+                               @onkeypress="HandleSearchKeyPress"
+                               placeholder="Search by title, content, or tags..." 
+                               class="search-input" />
+                        <span class="search-icon">🔍</span>
                     </div>
+                    
+                    <button class="search-btn" @onclick="PerformAdvancedSearch" disabled="@isSearching">
+                        @(isSearching ? "Searching..." : "Search")
+                    </button>
+                    
+                    <button class="clear-search-btn" @onclick="ClearAllFilters">
+                        Clear All
+                    </button>
+                </div>
 
-                    <!-- Tags Filter -->
-                    <div class="filter-group">
-                        <h4>Tags</h4>
-                        <div class="tags-filter">
-                            <input type="text" 
-                                   @bind="tagInput" 
-                                   @onkeypress="HandleTagKeyPress"
-                                   placeholder="Enter tags (comma separated)..." 
-                                   class="tag-input" />
-                            <button class="add-tag-btn" @onclick="AddTags">
-                                Add Tags
-                            </button>
-                            @if (searchParams.Tags != null && searchParams.Tags.Any())
-                            {
-                                <div class="selected-tags">
-                                    @foreach (var tag in searchParams.Tags)
-                                    {
-                                        <span class="tag-chip">
-                                            @tag
-                                            <button class="remove-tag" @onclick="() => RemoveTag(tag)">×</button>
-                                        </span>
-                                    }
+                <!-- Advanced Filters -->
+                @if (showAdvancedFilters)
+                {
+                    <div class="advanced-filters">
+                        <!-- Date Range Filter -->
+                        <div class="filter-group">
+                            <h4>Date Range</h4>
+                            <div class="date-range-container">
+                                <div class="date-input-wrapper">
+                                    <label for="start-date">From:</label>
+                                    <input type="date" 
+                                           id="start-date"
+                                           @bind="searchParams.StartDate" 
+                                           class="date-input" />
                                 </div>
+                                <div class="date-input-wrapper">
+                                    <label for="end-date">To:</label>
+                                    <input type="date" 
+                                           id="end-date"
+                                           @bind="searchParams.EndDate" 
+                                           class="date-input" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mood Filter -->
+                        <div class="filter-group">
+                            <h4>Moods</h4>
+                            <div class="mood-filters">
+                                @foreach (var mood in availableMoods)
+                                {
+                                    <label class="mood-checkbox">
+                                        <input type="checkbox" 
+                                               @onchange="() => ToggleMood(mood.Id)"
+                                               checked="@IsMoodSelected(mood.Id)" />
+                                        <span class="mood-checkbox-icon">@mood.Icon</span>
+                                        <span class="mood-checkbox-label">@mood.Name</span>
+                                    </label>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Tags Filter -->
+                        <div class="filter-group">
+                            <h4>Tags</h4>
+                            <div class="tags-filter">
+                                <input type="text" 
+                                       @bind="tagInput" 
+                                       @onkeypress="HandleTagKeyPress"
+                                       placeholder="Enter tags (comma separated)..." 
+                                       class="tag-input" />
+                                <button class="add-tag-btn" @onclick="AddTags">
+                                    Add Tags
+                                </button>
+                                @if (searchParams.Tags != null && searchParams.Tags.Any())
+                                {
+                                    <div class="selected-tags">
+                                        @foreach (var tag in searchParams.Tags)
+                                        {
+                                            <span class="tag-chip">
+                                                @tag
+                                                <button class="remove-tag" @onclick="() => RemoveTag(tag)">×</button>
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <!-- Active Filters Summary -->
+                @if (HasActiveFilters())
+                {
+                    <div class="active-filters-summary">
+                        <strong>Active filters:</strong>
+                        @if (!string.IsNullOrWhiteSpace(searchParams.SearchTerm))
+                        {
+                            <span class="filter-chip">Text: "@searchParams.SearchTerm"</span>
+                        }
+                        @if (searchParams.StartDate.HasValue || searchParams.EndDate.HasValue)
+                        {
+                            <span class="filter-chip">
+                                Date: @(searchParams.StartDate?.ToString("MMM dd, yyyy") ?? "Any") - @(searchParams.EndDate?.ToString("MMM dd, yyyy") ?? "Any")
+                            </span>
+                        }
+                        @if (searchParams.MoodIds?.Any() == true)
+                        {
+                            var selectedMoodNames = availableMoods
+                                .Where(m => searchParams.MoodIds.Contains(m.Id))
+                                .Select(m => m.Name);
+                            <span class="filter-chip">Moods: @string.Join(", ", selectedMoodNames)</span>
+                        }
+                        @if (searchParams.Tags?.Any() == true)
+                        {
+                            <span class="filter-chip">Tags: @string.Join(", ", searchParams.Tags)</span>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- Search Results Info -->
+            @if (!isSearching)
+            {
+                <div class="search-results-info">
+                    Found @filteredEntries.Count() result@(filteredEntries.Count() != 1 ? "s" : "")
+                    @(HasActiveFilters() ? " with active filters" : "")
+                </div>
+            }
+
+            <div class="journal-grid">
+                @foreach (var entry in filteredEntries)
+                {
+                    <div class="journal-entry-card" @key="entry.Id" @onclick="() => ViewEntry(entry.Id)">
+                        <div class="journal-entry-header">
+                            <h3 class="journal-entry-title">@entry.Title</h3>
+                            <div class="journal-entry-date">@entry.EntryDate.ToString("MMM dd, yyyy")</div>
+                        </div>
+                        
+                        <div class="journal-entry-preview">
+                            @GetContentPreview(entry.Content)
+                        </div>
+                        
+                        <div class="journal-entry-footer">
+                            <div class="journal-entry-meta">
+                                <!-- Mood display will be implemented later with the new mood system -->
+                            </div>
+                            <div class="journal-entry-updated">
+                                Updated @entry.UpdatedAt.ToString("MMM d")
+                            </div>
+                        </div>
+                        
+                        <div class="journal-entry-actions">
+                            <button class="action-btn edit" @onclick="() => EditEntry(entry.Id)" @onclick:stopPropagation title="Edit">
+                                ✏️
+                            </button>
+                            <button class="action-btn delete" @onclick="() => DeleteEntry(entry.Id)" @onclick:stopPropagation title="Delete">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Pagination Controls -->
+            <div class="pagination-container">
+                <div class="pagination-info">
+                    <span>Showing @((currentPage - 1) * pageSize + 1)-@(Math.Min(currentPage * pageSize, paginatedEntries.TotalCount)) of @paginatedEntries.TotalCount entries</span>
+                </div>
+                
+                <div class="pagination-controls">
+                    <button type="button" class="pagination-btn" 
+                            @onclick="PreviousPage"
+                            disabled="@(currentPage <= 1)">
+                        ← Previous
+                    </button>
+                    
+                    <div class="pagination-numbers">
+                        @for (int i = 1; i <= paginatedEntries.TotalPages; i++)
+                        {
+                            // FIX: Create a local variable to capture the CURRENT value of i
+                            int pageNumber = i; 
+
+                            @if (i == 1 || i == paginatedEntries.TotalPages || (i >= currentPage - 1 && i <= currentPage + 1))
+                            {
+                                <button type="button" 
+                                        class="pagination-number @(pageNumber == currentPage ? "active" : "")" 
+                                        @onclick="() => GoToPage(pageNumber)"
+                                        disabled="@(pageNumber == currentPage)">
+                                    @pageNumber
+                                </button>
                             }
-                        </div>
-                    </div>
-                </div>
-            }
-
-            <!-- Active Filters Summary -->
-            @if (HasActiveFilters())
-            {
-                <div class="active-filters-summary">
-                    <strong>Active filters:</strong>
-                    @if (!string.IsNullOrWhiteSpace(searchParams.SearchTerm))
-                    {
-                        <span class="filter-chip">Text: "@searchParams.SearchTerm"</span>
-                    }
-                    @if (searchParams.StartDate.HasValue || searchParams.EndDate.HasValue)
-                    {
-                        <span class="filter-chip">
-                            Date: @(searchParams.StartDate?.ToString("MMM dd, yyyy") ?? "Any") - @(searchParams.EndDate?.ToString("MMM dd, yyyy") ?? "Any")
-                        </span>
-                    }
-                    @if (searchParams.MoodIds?.Any() == true)
-                    {
-                        var selectedMoodNames = availableMoods
-                            .Where(m => searchParams.MoodIds.Contains(m.Id))
-                            .Select(m => m.Name);
-                        <span class="filter-chip">Moods: @string.Join(", ", selectedMoodNames)</span>
-                    }
-                    @if (searchParams.Tags?.Any() == true)
-                    {
-                        <span class="filter-chip">Tags: @string.Join(", ", searchParams.Tags)</span>
-                    }
-                </div>
-            }
-        </div>
-
-        <!-- Search Results Info -->
-        @if (!isSearching)
-        {
-            <div class="search-results-info">
-                Found @filteredEntries.Count() result@(filteredEntries.Count() != 1 ? "s" : "")
-                @(HasActiveFilters() ? " with active filters" : "")
-            </div>
-        }
-
-        <div class="journal-grid">
-            @foreach (var entry in filteredEntries)
-            {
-                <div class="journal-entry-card" @key="entry.Id" @onclick="() => ViewEntry(entry.Id)">
-                    <div class="journal-entry-header">
-                        <h3 class="journal-entry-title">@entry.Title</h3>
-                        <div class="journal-entry-date">@entry.EntryDate.ToString("MMM dd, yyyy")</div>
+                            else if (i == currentPage - 2 || i == currentPage + 2)
+                            {
+                                <span class="pagination-ellipsis">...</span>
+                            }
+                        }
                     </div>
                     
-                    <div class="journal-entry-preview">
-                        @GetContentPreview(entry.Content)
-                    </div>
-                    
-                    <div class="journal-entry-footer">
-                        <div class="journal-entry-meta">
-                            <!-- Mood display will be implemented later with the new mood system -->
-                        </div>
-                        <div class="journal-entry-updated">
-                            Updated @entry.UpdatedAt.ToString("MMM d")
-                        </div>
-                    </div>
-                    
-                    <div class="journal-entry-actions">
-                        <button class="action-btn edit" @onclick="() => EditEntry(entry.Id)" @onclick:stopPropagation title="Edit">
-                            ✏️
-                        </button>
-                        <button class="action-btn delete" @onclick="() => DeleteEntry(entry.Id)" @onclick:stopPropagation title="Delete">
-                            🗑️
-                        </button>
-                    </div>
+                    <button type="button" class="pagination-btn" 
+                            @onclick="NextPage"
+                            disabled="@(currentPage >= paginatedEntries.TotalPages)">
+                        Next →
+                    </button>
                 </div>
-            }
-        </div>
-
-        <!-- Pagination Controls -->
-        <div class="pagination-container">
-            <div class="pagination-info">
-                <span>Showing @((currentPage - 1) * pageSize + 1)-@(Math.Min(currentPage * pageSize, paginatedEntries.TotalCount)) of @paginatedEntries.TotalCount entries</span>
             </div>
-            
-            <div class="pagination-controls">
-                <button type="button" class="pagination-btn" 
-                        @onclick="PreviousPage"
-                        disabled="@(currentPage <= 1)">
-                    ← Previous
-                </button>
-                
-                <div class="pagination-numbers">
-    @for (int i = 1; i <= paginatedEntries.TotalPages; i++)
-    {
-        // FIX: Create a local variable to capture the CURRENT value of i
-        int pageNumber = i; 
-
-        @if (i == 1 || i == paginatedEntries.TotalPages || (i >= currentPage - 1 && i <= currentPage + 1))
-        {
-            <button type="button" 
-                    class="pagination-number @(pageNumber == currentPage ? "active" : "")" 
-                    @onclick="() => GoToPage(pageNumber)"
-                    disabled="@(pageNumber == currentPage)">
-                @pageNumber
-            </button>
         }
-        else if (i == currentPage - 2 || i == currentPage + 2)
-        {
-            <span class="pagination-ellipsis">...</span>
-        }
-    }
-</div>
-                
-                <button type="button" class="pagination-btn" 
-                        @onclick="NextPage"
-                        disabled="@(currentPage >= paginatedEntries.TotalPages)">
-                    Next →
-                </button>
-            </div>
-        </div>
-    }
     </div>
 </div>
 
@@ -278,6 +322,8 @@
     private bool isSearching = false;
     private bool showAdvancedFilters = false;
     private bool isInSearchMode = false;
+    private bool isExporting = false;
+    private bool showPdfExportOptions = false;
     private int currentPage = 1;
     private const int pageSize = 10;
     
@@ -285,6 +331,10 @@
     private SearchParameters searchParams = new();
     private string tagInput = "";
     private List<Mood> availableMoods = new();
+
+    // PDF Export parameters
+    private DateOnly? pdfExportStartDate;
+    private DateOnly? pdfExportEndDate;
 
     protected override async Task OnInitializedAsync()
     {
@@ -345,65 +395,65 @@
     }
 
     private async Task GoToPage(int pageNumber)
-{
-    // Clamp the page number to valid range
-    if (pageNumber < 1)
-        pageNumber = 1;
-    if (paginatedEntries.TotalPages > 0 && pageNumber > paginatedEntries.TotalPages)
-        pageNumber = paginatedEntries.TotalPages;
-
-    // Always update currentPage
-    var pageChanged = currentPage != pageNumber;
-    currentPage = pageNumber;
-
-    // ALWAYS reload data when any page button is clicked (even if same page)
-    // This eliminates Blazor change-detection flakiness
-    if (isInSearchMode || HasActiveFilters())
     {
-        await LoadSearchResults();
-    }
-    else
-    {
-        await LoadEntries();
-    }
+        // Clamp the page number to valid range
+        if (pageNumber < 1)
+            pageNumber = 1;
+        if (paginatedEntries.TotalPages > 0 && pageNumber > paginatedEntries.TotalPages)
+            pageNumber = paginatedEntries.TotalPages;
 
-    // Force re-render in case Blazor doesn't detect the change
-    StateHasChanged();
-}
+        // Always update currentPage
+        var pageChanged = currentPage != pageNumber;
+        currentPage = pageNumber;
+
+        // ALWAYS reload data when any page button is clicked (even if same page)
+        // This eliminates Blazor change-detection flakiness
+        if (isInSearchMode || HasActiveFilters())
+        {
+            await LoadSearchResults();
+        }
+        else
+        {
+            await LoadEntries();
+        }
+
+        // Force re-render in case Blazor doesn't detect the change
+        StateHasChanged();
+    }
 
     private async Task PreviousPage()
-{
-    if (currentPage > 1)
     {
-        currentPage--;
-        if (isInSearchMode || HasActiveFilters())
+        if (currentPage > 1)
         {
-            await LoadSearchResults();
+            currentPage--;
+            if (isInSearchMode || HasActiveFilters())
+            {
+                await LoadSearchResults();
+            }
+            else
+            {
+                await LoadEntries();
+            }
+            StateHasChanged();
         }
-        else
-        {
-            await LoadEntries();
-        }
-        StateHasChanged();
     }
-}
 
-private async Task NextPage()
-{
-    if (currentPage < paginatedEntries.TotalPages)
+    private async Task NextPage()
     {
-        currentPage++;
-        if (isInSearchMode || HasActiveFilters())
+        if (currentPage < paginatedEntries.TotalPages)
         {
-            await LoadSearchResults();
+            currentPage++;
+            if (isInSearchMode || HasActiveFilters())
+            {
+                await LoadSearchResults();
+            }
+            else
+            {
+                await LoadEntries();
+            }
+            StateHasChanged();
         }
-        else
-        {
-            await LoadEntries();
-        }
-        StateHasChanged();
     }
-}
 
     private async Task LoadSearchResults()
     {
@@ -668,6 +718,103 @@ private async Task NextPage()
                 }
             }
         }
+    }
+
+    private void TogglePdfExportOptions()
+    {
+        showPdfExportOptions = !showPdfExportOptions;
+        if (!showPdfExportOptions)
+        {
+            pdfExportStartDate = null;
+            pdfExportEndDate = null;
+        }
+    }
+
+    private async Task ExportToPdf()
+    {
+        if (AuthStateService.CurrentUser?.Id == null)
+        {
+            ToastService.ShowError("Error", "You must be logged in to export entries.");
+            return;
+        }
+
+        showPdfExportOptions = true;
+    }
+
+    private async Task ConfirmPdfExport()
+    {
+        System.Diagnostics.Debug.WriteLine("=== ConfirmPdfExport started ===");
+        
+        if (AuthStateService.CurrentUser?.Id == null)
+        {
+            System.Diagnostics.Debug.WriteLine("No user logged in");
+            return;
+        }
+
+        isExporting = true;
+        StateHasChanged();
+        
+        try
+        {
+            System.Diagnostics.Debug.WriteLine("Calling PdfExportService.ExportAndSaveJournalsAsync");
+            await PdfExportService.ExportAndSaveJournalsAsync(
+                AuthStateService.CurrentUser.Id, pdfExportStartDate, pdfExportEndDate);
+            System.Diagnostics.Debug.WriteLine("PdfExportService.ExportAndSaveJournalsAsync returned");
+            
+            ToastService.ShowSuccess("Success", "PDF saved and opening...");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Export Error: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Export Error Stack: {ex.StackTrace}");
+            ToastService.ShowError("Export Failed", $"Error: {ex.Message}. Check debug logs for details.");
+        }
+        finally
+        {
+            isExporting = false;
+            showPdfExportOptions = false;
+            StateHasChanged();
+        }
+        
+        System.Diagnostics.Debug.WriteLine("=== ConfirmPdfExport completed ===");
+    }
+
+    private async Task ExportAllJournals()
+    {
+        System.Diagnostics.Debug.WriteLine("=== ExportAllJournals started ===");
+        
+        if (AuthStateService.CurrentUser?.Id == null)
+        {
+            System.Diagnostics.Debug.WriteLine("No user logged in");
+            return;
+        }
+
+        isExporting = true;
+        StateHasChanged();
+        
+        try
+        {
+            System.Diagnostics.Debug.WriteLine("Calling PdfExportService.ExportAndSaveJournalsAsync (all entries)");
+            await PdfExportService.ExportAndSaveJournalsAsync(
+                AuthStateService.CurrentUser.Id, null, null);
+            System.Diagnostics.Debug.WriteLine("PdfExportService.ExportAndSaveJournalsAsync returned");
+            
+            ToastService.ShowSuccess("Success", "PDF saved and opening...");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Export Error: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Export Error Stack: {ex.StackTrace}");
+            ToastService.ShowError("Export Failed", $"Error: {ex.Message}. Check debug logs for details.");
+        }
+        finally
+        {
+            isExporting = false;
+            showPdfExportOptions = false;
+            StateHasChanged();
+        }
+        
+        System.Diagnostics.Debug.WriteLine("=== ExportAllJournals completed ===");
     }
 
     private string GetContentPreview(string content)

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Storage;
+using CommunityToolkit.Maui;
 using MindLog.Data;
 using MindLog.Models;
 using MindLog.Services;
@@ -14,7 +15,11 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
-            .ConfigureFonts(fonts => { fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular"); });
+            .UseMauiCommunityToolkit()
+            .ConfigureFonts(fonts => 
+            { 
+                fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular"); 
+            });
 
         builder.Services.AddMauiBlazorWebView();
 
@@ -30,6 +35,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<ToastService>();
         builder.Services.AddSingleton<ThemeService>();
         builder.Services.AddSingleton<StreakService>();
+        builder.Services.AddSingleton<PdfExportService>();
 
 #if DEBUG
         builder.Services.AddBlazorWebViewDeveloperTools();

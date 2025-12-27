@@ -1,73 +1,81 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
 
-    <PropertyGroup>
-        <!-- Temporarily focusing on Windows only due to SDK installation issues -->
-        <TargetFrameworks>net8.0-windows10.0.19041.0</TargetFrameworks>
-        <!-- Uncomment below when Android/iOS SDKs are properly installed -->
-        <!-- <TargetFrameworks>net8.0-android;net8.0-ios;net8.0-maccatalyst</TargetFrameworks>
-        <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net8.0-windows10.0.19041.0</TargetFrameworks> -->
-        <!-- Uncomment to also build the tizen app. You will need to install tizen by following this: https://github.com/Samsung/Tizen.NET -->
-        <!-- <TargetFrameworks>$(TargetFrameworks);net8.0-tizen</TargetFrameworks> -->
+  <PropertyGroup>
+    <!-- Default targets: Mac Catalyst only (always available on macOS) -->
+    <TargetFrameworks>net8.0-maccatalyst</TargetFrameworks>
 
-        <!-- Note for MacCatalyst:
-            The default runtime is maccatalyst-x64, except in Release config, in which case the default is maccatalyst-x64;maccatalyst-arm64.
-            When specifying both architectures, use the plural <RuntimeIdentifiers> instead of the singular <RuntimeIdentifier>.
-            The Mac App Store will NOT accept apps with ONLY maccatalyst-arm64 indicated;
-            either BOTH runtimes must be indicated or ONLY macatalyst-x64. -->
-        <!-- For example: <RuntimeIdentifiers>maccatalyst-x64;maccatalyst-arm64</RuntimeIdentifiers> -->
+    <!-- Add Windows target ONLY when building on Windows OS -->
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(TargetFrameworks);net8.0-windows10.0.19041.0</TargetFrameworks>
 
-        <OutputType>Exe</OutputType>
-        <RootNamespace>MindLog</RootNamespace>
-        <UseMaui>true</UseMaui>
-        <SingleProject>true</SingleProject>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <EnableDefaultCssItems>false</EnableDefaultCssItems>
-        <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>MindLog</RootNamespace>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableDefaultCssItems>false</EnableDefaultCssItems>
+    <Nullable>enable</Nullable>
 
-        <!-- Display name -->
-        <ApplicationTitle>MindLog</ApplicationTitle>
+    <!-- App Info -->
+    <ApplicationTitle>MindLog</ApplicationTitle>
+    <ApplicationId>com.companyname.mindlog</ApplicationId>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
 
-        <!-- App Identifier -->
-        <ApplicationId>com.companyname.mindlog</ApplicationId>
+    <!-- Platform Versions -->
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">14.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
+</PropertyGroup>
 
-        <!-- Versions -->
-        <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-        <ApplicationVersion>1</ApplicationVersion>
+<!-- Mac Catalyst: Build for both Intel (x64) and Apple Silicon (arm64) -->
+<PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-maccatalyst'">
+    <RuntimeIdentifiers>maccatalyst-x64;maccatalyst-arm64</RuntimeIdentifiers>
+</PropertyGroup>
 
-        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">14.2</SupportedOSPlatformVersion>
-        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">14.0</SupportedOSPlatformVersion>
-        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
-        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
-        <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
-        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
-    </PropertyGroup>
+  <!-- Runtime Identifier for Windows -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-windows10.0.19041.0'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- Or win-x86 if you need 32-bit support -->
+  </PropertyGroup>
 
-    <ItemGroup>
-        <!-- App Icon -->
-        <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
+  <ItemGroup>
+    <!-- App Icon -->
+    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
 
-        <!-- Splash Screen -->
-        <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+    <!-- Splash Screen -->
+    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
 
-        <!-- Images -->
-        <MauiImage Include="Resources\Images\*" />
+    <!-- Images -->
+    <MauiImage Include="Resources\Images\*" />
+  </ItemGroup>
 
-        <!-- Custom Fonts -->
-        <MauiFont Include="Resources\Fonts\*" />
+  <ItemGroup>
+    <!-- Embedded Fonts for PdfSharpCore (critical for mobile/desktop cross-platform) -->
+    <EmbeddedResource Include="Resources\Fonts\OpenSans-Regular.ttf" />
+  </ItemGroup>
 
+  <ItemGroup>
+    <!-- Essential Packages -->
+    <PackageReference Include="CommunityToolkit.Maui" Version="9.1.0" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+    <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="$(MauiVersion)" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.1" />
 
-    </ItemGroup>
+    <!-- Database -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.10">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
 
-    
+    <!-- PDF Generation -->
+    <PackageReference Include="PdfSharpCore" Version="1.3.67" />
 
-    <ItemGroup>
-        <PackageReference Include="Blazor.Pagination" Version="2.0.2" />
-        <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
-        <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="$(MauiVersion)" />
-        <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.1" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0" />
-    </ItemGroup>
+    <!-- UI Helpers -->
+    <PackageReference Include="Blazor.Pagination" Version="2.0.2" />
+  </ItemGroup>
+
+  <!-- Remove QuestPDF and Syncfusion completely -->
+  <!-- They are not needed and cause conflicts/watermarks -->
 
 </Project>

@@ -988,6 +988,261 @@
   font-weight: 600;
 }
 
+/* PDF Export Styles */
+.header-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.export-pdf-btn {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.export-pdf-btn:hover:not(:disabled) {
+  background: rgba(102, 126, 234, 0.2);
+  border-color: #667eea;
+  transform: translateY(-1px);
+}
+
+.export-pdf-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pdf-export-options {
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(10px);
+  border-radius: 1rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 1.5rem;
+  margin: 1rem;
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.pdf-export-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.pdf-export-header h4 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.close-export-btn {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: none;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-export-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  transform: rotate(90deg);
+}
+
+.pdf-export-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.export-date-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.export-date-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.export-date-input label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.9rem;
+}
+
+.export-date-picker {
+  padding: 0.625rem 0.875rem;
+  border: 2px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  background: #ffffff;
+  color: #1f2937;
+}
+
+.export-date-picker:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+.export-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.export-cancel-btn {
+  background: rgba(107, 114, 128, 0.1);
+  color: #6b7280;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(107, 114, 128, 0.3);
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.export-cancel-btn:hover {
+  background: rgba(107, 114, 128, 0.2);
+  border-color: #6b7280;
+}
+
+.export-confirm-btn {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 0.625rem 1.5rem;
+  border-radius: 0.5rem;
+  border: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.export-confirm-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.6);
+}
+
+.export-confirm-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.export-all-btn {
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.export-all-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.6);
+}
+
+/* Dark theme PDF export styles */
+[data-theme="dark"] .pdf-export-options {
+  background: var(--card-bg);
+  border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .pdf-export-header {
+  border-bottom-color: var(--border-primary);
+}
+
+[data-theme="dark"] .pdf-export-header h4 {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .export-date-input label {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .export-date-picker {
+  background: var(--bg-tertiary);
+  border-color: var(--border-primary);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .export-date-picker:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+}
+
+[data-theme="dark"] .export-actions {
+  border-top-color: var(--border-primary);
+}
+
+[data-theme="dark"] .export-cancel-btn {
+  background: rgba(156, 163, 175, 0.1);
+  color: #9ca3af;
+  border-color: rgba(156, 163, 175, 0.3);
+}
+
+[data-theme="dark"] .export-cancel-btn:hover {
+  background: rgba(156, 163, 175, 0.2);
+  border-color: #9ca3af;
+  color: #d1d5db;
+}
+
+[data-theme="dark"] .export-pdf-btn {
+  background: rgba(96, 165, 250, 0.1);
+  color: #60a5fa;
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+[data-theme="dark"] .export-pdf-btn:hover:not(:disabled) {
+  background: rgba(96, 165, 250, 0.2);
+  border-color: #60a5fa;
+}
+
+/* Responsive PDF export */
+@media (max-width: 640px) {
+  .header-buttons {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .export-pdf-btn {
+    padding: 0.625rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .export-date-inputs {
+    grid-template-columns: 1fr;
+  }
+
+  .export-actions {
+    flex-direction: column;
+  }
+
+  .export-actions button {
+    width: 100%;
+  }
+}
+
 /* Responsive pagination */
 @media (max-width: 640px) {
   .pagination-container {
