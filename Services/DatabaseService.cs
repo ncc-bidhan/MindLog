@@ -1,139 +1,142 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using MindLog.Data;
+using MindLog.Interfaces;
+using MindLog.Helpers;
 using System.Linq;
 
 namespace MindLog.Services
 {
-    public class DatabaseService
+    public class DatabaseService : IDatabaseService
     {
-        private readonly AppDbContext _context;
+        private readonly IDbContextFactory<AppDbContext> _contextFactory;
+        private readonly ILogger<DatabaseService> _logger;
+        private static readonly string[] RequiredTables = { "Users", "JournalEntries", "Moods", "JournalEntryMoods", "UserStreaks" };
+        private static readonly string[] RequiredStreakColumns = { "CurrentStreak", "LongestStreak", "LastEntryDate" };
 
-        public DatabaseService(AppDbContext context)
+        public DatabaseService(IDbContextFactory<AppDbContext> contextFactory)
         {
-            _context = context;
+            _contextFactory = contextFactory;
+            _logger = Logger.GetLogger<DatabaseService>();
         }
 
         public async Task InitializeDatabaseAsync()
-    {
-        try
         {
-            Console.WriteLine("Initializing database...");
-            
-            // Ensure database exists with correct schema
-            await _context.Database.EnsureCreatedAsync();
-            Console.WriteLine("Database created/ensured");
-            
-            // Verify tables exist by trying to access them
             try
             {
-                var connection = _context.Database.GetDbConnection();
+                _logger.LogInformation("Initializing database...");
+                
+                await using var context = _contextFactory.CreateDbContext();
+                await context.Database.EnsureCreatedAsync();
+                _logger.LogInformation("Database created/ensured");
+                
+                var connection = context.Database.GetDbConnection();
                 await connection.OpenAsync();
                 
-                // Check if all required tables exist
-                using var command = connection.CreateCommand();
-                command.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('Users', 'JournalEntries', 'Moods', 'JournalEntryMoods', 'UserStreaks')";
-                var reader = await command.ExecuteReaderAsync();
+                var tables = await GetExistingTablesAsync(connection);
+                _logger.LogInformation("Tables found: {Tables}", string.Join(", ", tables));
                 
-                var tables = new List<string>();
-                while (await reader.ReadAsync())
+                var missingTables = RequiredTables.Except(tables).ToList();
+                
+                if (tables.Contains("Users"))
                 {
-                    tables.Add(reader.GetString(0));
+                    await EnsureStreakColumnsExistAsync(connection);
                 }
                 
-                Console.WriteLine($"Tables found: {string.Join(", ", tables)}");
-                
-                // Check if we need to update database schema
-                var requiredTables = new[] { "Users", "JournalEntries", "Moods", "JournalEntryMoods", "UserStreaks" };
-                var missingTables = requiredTables.Except(tables).ToList();
-                
-                // Check if Users table has the new streak columns
-                bool needsStreakColumnsUpdate = false;
-                if (!missingTables.Any() && tables.Contains("Users"))
+                if (missingTables.Any())
                 {
-                    using var pragmaCommand = connection.CreateCommand();
-                    pragmaCommand.CommandText = "PRAGMA table_info(Users)";
-                    var pragmaReader = await pragmaCommand.ExecuteReaderAsync();
-                    
-                    var columns = new List<string>();
-                    while (await pragmaReader.ReadAsync())
-                    {
-                        columns.Add(pragmaReader.GetString(1)); // Column name is at index 1
-                    }
-                    
-                    var requiredColumns = new[] { "CurrentStreak", "LongestStreak", "LastEntryDate" };
-                    var missingColumns = requiredColumns.Except(columns).ToList();
-                    
-                    if (missingColumns.Any())
-                    {
-                        Console.WriteLine($"Missing streak columns in Users table: {string.Join(", ", missingColumns)}");
-                        needsStreakColumnsUpdate = true;
-                        
-                        // Add missing columns
-                        using var alterCommand = connection.CreateCommand();
-                        foreach (var column in missingColumns)
-                        {
-                            alterCommand.CommandText = column switch
-                            {
-                                "CurrentStreak" => "ALTER TABLE Users ADD COLUMN CurrentStreak INTEGER NOT NULL DEFAULT 0",
-                                "LongestStreak" => "ALTER TABLE Users ADD COLUMN LongestStreak INTEGER NOT NULL DEFAULT 0", 
-                                "LastEntryDate" => "ALTER TABLE Users ADD COLUMN LastEntryDate TEXT",
-                                _ => null
-                            };
-                            
-                            if (alterCommand.CommandText != null)
-                            {
-                                await alterCommand.ExecuteNonQueryAsync();
-                                Console.WriteLine($"Added column {column} to Users table");
-                            }
-                        }
-                    }
-                }
-                
-                // Only recreate if tables are missing
-                bool needsRecreation = missingTables.Any();
-                
-                if (needsRecreation)
-                {
-                    if (missingTables.Any())
-                    {
-                        Console.WriteLine($"Missing tables: {string.Join(", ", missingTables)}");
-                    }
-                    else
-                    {
-                        Console.WriteLine("Database schema update required (mood constraint changes)");
-                    }
-                    Console.WriteLine("Recreating database with updated schema...");
-                    
+                    _logger.LogWarning("Missing tables: {MissingTables}", string.Join(", ", missingTables));
                     await connection.CloseAsync();
-                    
-                    // Drop existing database and recreate with all tables
-                    await _context.Database.EnsureDeletedAsync();
-                    await _context.Database.EnsureCreatedAsync();
-                    
-                    Console.WriteLine("Database recreated successfully");
+                    await RecreateDatabaseAsync();
                     return;
                 }
                 
                 await connection.CloseAsync();
-                Console.WriteLine("Database initialization completed successfully");
+                _logger.LogInformation("Database initialization completed successfully");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error verifying tables: {ex.Message}");
+                _logger.LogError(ex, "Database initialization error");
                 throw;
             }
         }
-        catch (Exception ex)
+
+        private async Task<List<string>> GetExistingTablesAsync(System.Data.Common.DbConnection connection)
         {
-            Console.WriteLine($"Database initialization error: {ex.Message}");
-            throw;
+            using var command = connection.CreateCommand();
+            command.CommandText = $"SELECT name FROM sqlite_master WHERE type='table' AND name IN ('{string.Join("', '", RequiredTables)}')";
+            var reader = await command.ExecuteReaderAsync();
+            
+            var tables = new List<string>();
+            while (await reader.ReadAsync())
+            {
+                tables.Add(reader.GetString(0));
+            }
+            return tables;
         }
-    }
+
+        private async Task EnsureStreakColumnsExistAsync(System.Data.Common.DbConnection connection)
+        {
+            using var pragmaCommand = connection.CreateCommand();
+            pragmaCommand.CommandText = "PRAGMA table_info(Users)";
+            var pragmaReader = await pragmaCommand.ExecuteReaderAsync();
+            
+            var columns = new List<string>();
+            while (await pragmaReader.ReadAsync())
+            {
+                columns.Add(pragmaReader.GetString(1));
+            }
+            
+            var missingColumns = RequiredStreakColumns.Except(columns).ToList();
+            
+            if (missingColumns.Any())
+            {
+                _logger.LogWarning("Missing streak columns in Users table: {MissingColumns}", string.Join(", ", missingColumns));
+                
+                using var alterCommand = connection.CreateCommand();
+                foreach (var column in missingColumns)
+                {
+                    alterCommand.CommandText = column switch
+                    {
+                        "CurrentStreak" => "ALTER TABLE Users ADD COLUMN CurrentStreak INTEGER NOT NULL DEFAULT 0",
+                        "LongestStreak" => "ALTER TABLE Users ADD COLUMN LongestStreak INTEGER NOT NULL DEFAULT 0", 
+                        "LastEntryDate" => "ALTER TABLE Users ADD COLUMN LastEntryDate TEXT",
+                        _ => null
+                    };
+                    
+                    if (alterCommand.CommandText != null)
+                    {
+                        await alterCommand.ExecuteNonQueryAsync();
+                        _logger.LogInformation("Added column {Column} to Users table", column);
+                    }
+                }
+            }
+        }
+
+        private async Task RecreateDatabaseAsync()
+        {
+            _logger.LogInformation("Recreating database with updated schema...");
+            await using var context = _contextFactory.CreateDbContext();
+            await context.Database.EnsureDeletedAsync();
+            await context.Database.EnsureCreatedAsync();
+            _logger.LogInformation("Database recreated successfully");
+        }
 
         public async Task ResetDatabaseAsync()
         {
-            await _context.Database.EnsureDeletedAsync();
-            await _context.Database.EnsureCreatedAsync();
+            try
+            {
+                _logger.LogWarning("Resetting database...");
+                await using var context = _contextFactory.CreateDbContext();
+                await context.Database.EnsureDeletedAsync();
+                await context.Database.EnsureCreatedAsync();
+                _logger.LogInformation("Database reset completed successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resetting database");
+                throw;
+            }
         }
     }
 }

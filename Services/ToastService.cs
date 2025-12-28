@@ -1,33 +1,47 @@
-using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Logging;
+using MindLog.Helpers;
+using MindLog.Interfaces;
 
 namespace MindLog.Services
 {
-    public class ToastService
+    public class ToastService : IToastService
     {
+        private readonly ILogger<ToastService> _logger;
+
         public event Action<bool, string, string, string>? OnShow;
 
-        public void ShowSuccess(string title, string message, int autoCloseAfter = 5000)
+        public ToastService()
         {
+            _logger = Logger.GetLogger<ToastService>();
+        }
+
+        public void ShowSuccess(string title, string message, int autoCloseAfter = Constants.Toast.DefaultAutoCloseDelay)
+        {
+            _logger.LogInformation("Showing success toast: {Title}", title);
             OnShow?.Invoke(true, "success", title, message);
         }
 
         public void ShowError(string title, string message, int autoCloseAfter = 0)
         {
+            _logger.LogError("Showing error toast: {Title} - {Message}", title, message);
             OnShow?.Invoke(true, "error", title, message);
         }
 
-        public void ShowWarning(string title, string message, int autoCloseAfter = 8000)
+        public void ShowWarning(string title, string message, int autoCloseAfter = Constants.Toast.WarningAutoCloseDelay)
         {
+            _logger.LogWarning("Showing warning toast: {Title}", title);
             OnShow?.Invoke(true, "warning", title, message);
         }
 
-        public void ShowInfo(string title, string message, int autoCloseAfter = 5000)
+        public void ShowInfo(string title, string message, int autoCloseAfter = Constants.Toast.DefaultAutoCloseDelay)
         {
+            _logger.LogInformation("Showing info toast: {Title}", title);
             OnShow?.Invoke(true, "info", title, message);
         }
 
         public void Hide()
         {
+            _logger.LogDebug("Hiding toast");
             OnShow?.Invoke(false, "", "", "");
         }
     }

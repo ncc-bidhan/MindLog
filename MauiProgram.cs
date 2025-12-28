@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Storage;
 using CommunityToolkit.Maui;
 using MindLog.Data;
+using MindLog.Interfaces;
 using MindLog.Models;
 using MindLog.Services;
 
@@ -23,18 +24,26 @@ public static class MauiProgram
 
         builder.Services.AddMauiBlazorWebView();
 
-        builder.Services.AddDbContext<AppDbContext>(options =>
+        builder.Services.AddDbContextFactory<AppDbContext>(options =>
         {
             var databasePath = Path.Combine(FileSystem.AppDataDirectory, "mindlog.db");
             options.UseSqlite($"Data Source={databasePath}");
         });
-        builder.Services.AddSingleton<AuthService>();
+
+        builder.Services.AddScoped<IAuthService, AuthService>();
+        builder.Services.AddScoped<AuthService>();
+        builder.Services.AddSingleton<IAuthStateService, AuthStateService>();
         builder.Services.AddSingleton<AuthStateService>();
-        builder.Services.AddSingleton<DatabaseService>();
-        builder.Services.AddSingleton<JournalEntryService>();
+        builder.Services.AddSingleton<IDatabaseService, DatabaseService>();
+        builder.Services.AddScoped<IJournalEntryService, JournalEntryService>();
+        builder.Services.AddScoped<JournalEntryService>();
+        builder.Services.AddSingleton<IToastService, ToastService>();
         builder.Services.AddSingleton<ToastService>();
+        builder.Services.AddSingleton<IThemeService, ThemeService>();
         builder.Services.AddSingleton<ThemeService>();
-        builder.Services.AddSingleton<StreakService>();
+        builder.Services.AddScoped<IStreakService, StreakService>();
+        builder.Services.AddScoped<StreakService>();
+        builder.Services.AddSingleton<IPdfExportService, PdfExportService>();
         builder.Services.AddSingleton<PdfExportService>();
 
 #if DEBUG
@@ -44,11 +53,9 @@ public static class MauiProgram
 
         var app = builder.Build();
         
-        // Initialize the app with services
         App.Services = app.Services;
 
-        // Initialize database
-        var databaseService = app.Services.GetRequiredService<DatabaseService>();
+        var databaseService = app.Services.GetRequiredService<IDatabaseService>();
         databaseService.InitializeDatabaseAsync().GetAwaiter().GetResult();
 
         return app;

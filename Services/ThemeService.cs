@@ -1,35 +1,38 @@
-using System;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Storage;
+using MindLog.Helpers;
+using MindLog.Interfaces;
 
 namespace MindLog.Services
 {
-    public class ThemeService
+    public class ThemeService : IThemeService
     {
-        private bool _isDarkMode = false;
+        private bool _isDarkMode;
+        private readonly ILogger<ThemeService> _logger;
 
         public event Action<bool>? OnThemeChanged;
 
         public ThemeService()
         {
-            // Initialize with saved theme or default to light
-            LoadSavedTheme();
+            _logger = Logger.GetLogger<ThemeService>();
+            _isDarkMode = LoadSavedTheme();
         }
 
         public bool IsDarkMode => _isDarkMode;
 
-        private void LoadSavedTheme()
+        private bool LoadSavedTheme()
         {
             try
             {
-                var savedTheme = Preferences.Get("theme", "light");
-                _isDarkMode = savedTheme.ToLower() == "dark";
-                Console.WriteLine($"ThemeService: Loaded saved theme: {savedTheme}, isDark: {_isDarkMode}");
+                var savedTheme = Preferences.Get(Constants.Theme.ThemePreferenceKey, Constants.Theme.LightTheme);
+                var isDark = savedTheme.ToLowerInvariant() == Constants.Theme.DarkTheme;
+                _logger.LogInformation("Loaded saved theme: {Theme}", isDark ? "Dark" : "Light");
+                return isDark;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"ThemeService: Error loading saved theme: {ex.Message}");
-                _isDarkMode = false; // Default to light theme
+                _logger.LogError(ex, "Error loading saved theme, using default light theme");
+                return false;
             }
         }
 
@@ -37,58 +40,42 @@ namespace MindLog.Services
         {
             try
             {
-                Preferences.Set("theme", _isDarkMode ? "dark" : "light");
-                Console.WriteLine($"ThemeService: Saved theme: {(_isDarkMode ? "dark" : "light")}");
+                Preferences.Set(Constants.Theme.ThemePreferenceKey, _isDarkMode ? Constants.Theme.DarkTheme : Constants.Theme.LightTheme);
+                _logger.LogInformation("Saved theme: {Theme}", _isDarkMode ? "Dark" : "Light");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"ThemeService: Error saving theme: {ex.Message}");
+                _logger.LogError(ex, "Error saving theme preference");
             }
         }
 
         public async Task InitializeAsync()
         {
-            Console.WriteLine("ThemeService: Initializing...");
-            
-            // Load the saved theme
-            LoadSavedTheme();
-            
-            Console.WriteLine($"ThemeService: Initialization complete. Current theme: {(_isDarkMode ? "dark" : "light")}");
+            _logger.LogInformation("ThemeService initializing");
+            _isDarkMode = LoadSavedTheme();
             OnThemeChanged?.Invoke(_isDarkMode);
+            _logger.LogInformation("ThemeService initialized with theme: {Theme}", _isDarkMode ? "Dark" : "Light");
         }
 
         public async Task ToggleThemeAsync()
         {
             _isDarkMode = !_isDarkMode;
             SaveTheme();
-            Console.WriteLine($"ThemeService: Theme toggled to: {(_isDarkMode ? "dark" : "light")}");
+            _logger.LogInformation("Theme toggled to: {Theme}", _isDarkMode ? "Dark" : "Light");
             OnThemeChanged?.Invoke(_isDarkMode);
         }
 
         public async Task SetThemeAsync(bool isDark)
         {
-            Console.WriteLine($"ThemeService.SetThemeAsync called with isDark: {isDark}, current theme: {_isDarkMode}");
-            
             if (_isDarkMode == isDark)
             {
-                Console.WriteLine("ThemeService: Theme is already the requested value, returning");
                 return;
             }
 
             _isDarkMode = isDark;
             SaveTheme();
-            
-            Console.WriteLine($"ThemeService: Theme set to: {(isDark ? "dark" : "light")}");
-            Console.WriteLine($"ThemeService: Invoking OnThemeChanged with: {_isDarkMode}");
+            _logger.LogInformation("Theme set to: {Theme}", isDark ? "Dark" : "Light");
             OnThemeChanged?.Invoke(_isDarkMode);
-            Console.WriteLine($"ThemeService: OnThemeChanged invoked");
-        }
-
-        // Debug method to check current theme state
-        public string GetCurrentThemeDebug()
-        {
-            var savedTheme = Preferences.Get("theme", "light");
-            return $"Current theme: {_isDarkMode}, Saved theme: {savedTheme}";
         }
     }
 }

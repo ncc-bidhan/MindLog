@@ -86,8 +86,7 @@ else
 
     private void DebugTheme()
     {
-        var debugInfo = ThemeService.GetCurrentThemeDebug();
-        Console.WriteLine($"Debug info: {debugInfo}");
+        Console.WriteLine($"Debug info: IsDarkMode={ThemeService.IsDarkMode}");
     }
 
     public void Dispose()

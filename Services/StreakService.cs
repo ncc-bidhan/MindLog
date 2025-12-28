@@ -1,54 +1,94 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using MindLog.Data;
+using MindLog.Helpers;
+using MindLog.Interfaces;
 using MindLog.Models;
 
 namespace MindLog.Services
 {
-    public class StreakService
+    public class StreakService : IStreakService
     {
-        private readonly AppDbContext _context;
-        private readonly JournalEntryService _journalEntryService;
+        private readonly IDbContextFactory<AppDbContext> _contextFactory;
+        private readonly ILogger<StreakService> _logger;
 
-        public StreakService(AppDbContext context, JournalEntryService journalEntryService)
+        public StreakService(IDbContextFactory<AppDbContext> contextFactory)
         {
-            _context = context;
-            _journalEntryService = journalEntryService;
+            _contextFactory = contextFactory;
+            _logger = Logger.GetLogger<StreakService>();
         }
 
         public async Task<UserStreak> GetUserStreakAsync(int userId)
         {
-            var userStreak = await _context.UserStreaks
-                .FirstOrDefaultAsync(us => us.UserId == userId);
-
-            if (userStreak == null)
+            try
             {
-                userStreak = await InitializeUserStreakAsync(userId);
-            }
+                await using var context = _contextFactory.CreateDbContext();
+                var userStreak = await context.UserStreaks
+                    .FirstOrDefaultAsync(us => us.UserId == userId);
 
-            return userStreak;
+                if (userStreak == null)
+                {
+                    userStreak = await InitializeUserStreakAsync(context, userId);
+                }
+
+                return userStreak;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving user streak for UserId: {UserId}", userId);
+                throw;
+            }
         }
 
         public async Task<UserStreak> UpdateStreakAfterEntryAsync(int userId, DateOnly entryDate)
         {
-            var userStreak = await GetUserStreakAsync(userId);
-            var allEntries = await _journalEntryService.GetEntriesByUserIdAsync(userId);
-            
-            await CalculateAndUpdateStreak(userStreak, allEntries);
-            
-            return userStreak;
+            try
+            {
+                await using var context = _contextFactory.CreateDbContext();
+                var userStreak = await GetUserStreakAsync(userId);
+                var allEntries = await context.JournalEntries
+                    .Where(e => e.UserId == userId)
+                    .OrderBy(e => e.EntryDate)
+                    .Select(e => e.EntryDate)
+                    .ToListAsync();
+
+                await CalculateAndUpdateStreak(context, userStreak, allEntries);
+
+                _logger.LogInformation("Updated streak after entry for UserId: {UserId}, Date: {EntryDate}", userId, entryDate);
+                return userStreak;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating streak after entry for UserId: {UserId}", userId);
+                throw;
+            }
         }
 
         public async Task<UserStreak> UpdateStreakAfterDeletionAsync(int userId)
         {
-            var userStreak = await GetUserStreakAsync(userId);
-            var allEntries = await _journalEntryService.GetEntriesByUserIdAsync(userId);
-            
-            await CalculateAndUpdateStreak(userStreak, allEntries);
-            
-            return userStreak;
+            try
+            {
+                await using var context = _contextFactory.CreateDbContext();
+                var userStreak = await GetUserStreakAsync(userId);
+                var allEntries = await context.JournalEntries
+                    .Where(e => e.UserId == userId)
+                    .OrderBy(e => e.EntryDate)
+                    .Select(e => e.EntryDate)
+                    .ToListAsync();
+
+                await CalculateAndUpdateStreak(context, userStreak, allEntries);
+
+                _logger.LogInformation("Updated streak after deletion for UserId: {UserId}", userId);
+                return userStreak;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating streak after deletion for UserId: {UserId}", userId);
+                throw;
+            }
         }
 
-        private async Task<UserStreak> InitializeUserStreakAsync(int userId)
+        private async Task<UserStreak> InitializeUserStreakAsync(AppDbContext context, int userId)
         {
             var userStreak = new UserStreak
             {
@@ -61,15 +101,16 @@ namespace MindLog.Services
                 UpdatedAt = DateTime.Now
             };
 
-            _context.UserStreaks.Add(userStreak);
-            await _context.SaveChangesAsync();
+            context.UserStreaks.Add(userStreak);
+            await context.SaveChangesAsync();
 
+            _logger.LogInformation("Initialized user streak for UserId: {UserId}", userId);
             return userStreak;
         }
 
-        private async Task CalculateAndUpdateStreak(UserStreak userStreak, List<JournalEntry> allEntries)
+        private async Task CalculateAndUpdateStreak(AppDbContext context, UserStreak userStreak, List<DateOnly> allEntryDates)
         {
-            if (!allEntries.Any())
+            if (!allEntryDates.Any())
             {
                 userStreak.CurrentStreak = 0;
                 userStreak.LongestStreak = 0;
@@ -80,16 +121,11 @@ namespace MindLog.Services
             }
             else
             {
-                var entryDates = allEntries
-                    .Select(e => e.EntryDate)
-                    .OrderBy(d => d)
-                    .ToList();
+                userStreak.TotalEntries = allEntryDates.Count;
+                userStreak.LastEntryDate = allEntryDates.Max().ToDateTime(TimeOnly.MinValue);
 
-                userStreak.TotalEntries = entryDates.Count;
-                userStreak.LastEntryDate = entryDates.Max().ToDateTime(TimeOnly.MinValue);
-
-                var (currentStreak, longestStreak, missedDays, streakStartDate) = 
-                    CalculateStreakMetrics(entryDates);
+                var (currentStreak, longestStreak, missedDays, streakStartDate) =
+                    CalculateStreakMetrics(allEntryDates);
 
                 userStreak.CurrentStreak = currentStreak;
                 userStreak.LongestStreak = longestStreak;
@@ -98,8 +134,8 @@ namespace MindLog.Services
             }
 
             userStreak.UpdatedAt = DateTime.Now;
-            _context.UserStreaks.Update(userStreak);
-            await _context.SaveChangesAsync();
+            context.UserStreaks.Update(userStreak);
+            await context.SaveChangesAsync();
         }
 
         private (int currentStreak, int longestStreak, int missedDays, DateOnly streakStartDate) 
@@ -110,20 +146,20 @@ namespace MindLog.Services
 
             var sortedDates = entryDates.Distinct().OrderBy(d => d).ToList();
             var today = DateOnly.FromDateTime(DateTime.Now);
-            
+
             // Calculate current streak
             int currentStreak = 0;
             DateOnly streakStartDate = sortedDates.First();
-            
+
             // Check if the most recent entry is today or yesterday to maintain current streak
             var mostRecentEntry = sortedDates.Last();
-            
+
             if (mostRecentEntry == today || mostRecentEntry == today.AddDays(-1))
             {
                 // Start from the most recent entry and work backwards
                 currentStreak = 1;
                 var currentDate = mostRecentEntry;
-                
+
                 for (int i = sortedDates.Count - 2; i >= 0; i--)
                 {
                     var expectedDate = currentDate.AddDays(-1);
@@ -144,7 +180,7 @@ namespace MindLog.Services
             {
                 // Streak is broken
                 currentStreak = 0;
-                
+
                 // Find the start of the most recent streak
                 for (int i = sortedDates.Count - 1; i >= 0; i--)
                 {
@@ -153,7 +189,7 @@ namespace MindLog.Services
                         streakStartDate = sortedDates[i];
                         break;
                     }
-                    
+
                     var expectedDate = sortedDates[i].AddDays(-1);
                     if (sortedDates[i - 1] == expectedDate)
                     {
@@ -170,7 +206,7 @@ namespace MindLog.Services
             // Calculate longest streak
             int longestStreak = 0;
             int tempStreak = 1;
-            
+
             for (int i = 1; i < sortedDates.Count; i++)
             {
                 var expectedDate = sortedDates[i - 1].AddDays(1);
@@ -200,33 +236,53 @@ namespace MindLog.Services
 
         public async Task<List<DateOnly>> GetStreakCalendarAsync(int userId, int year, int month)
         {
-            var entries = await _journalEntryService.GetEntriesByUserIdAsync(userId);
-            var startDate = new DateOnly(year, month, 1);
-            var endDate = month == 12 
-                ? new DateOnly(year + 1, 1, 1).AddDays(-1)
-                : new DateOnly(year, month + 1, 1).AddDays(-1);
+            try
+            {
+                await using var context = _contextFactory.CreateDbContext();
+                var startDate = new DateOnly(year, month, 1);
+                var endDate = month == 12 
+                    ? new DateOnly(year + 1, 1, 1).AddDays(-1)
+                    : new DateOnly(year, month + 1, 1).AddDays(-1);
 
-            return entries
-                .Where(e => e.EntryDate >= startDate && e.EntryDate <= endDate)
-                .Select(e => e.EntryDate)
-                .ToList();
+                var entries = await context.JournalEntries
+                    .Where(e => e.UserId == userId && e.EntryDate >= startDate && e.EntryDate <= endDate)
+                    .Select(e => e.EntryDate)
+                    .ToListAsync();
+
+                _logger.LogInformation("Retrieved streak calendar for UserId: {UserId}, Month: {Month}/{Year}", userId, month, year);
+                return entries;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving streak calendar for UserId: {UserId}, Month: {Month}/{Year}", userId, month, year);
+                throw;
+            }
         }
 
         public async Task<Dictionary<DateOnly, bool>> GetEntryStatusForMonthAsync(int userId, int year, int month)
         {
-            var entryDates = await GetStreakCalendarAsync(userId, year, month);
-            var startDate = new DateOnly(year, month, 1);
-            var endDate = month == 12 
-                ? new DateOnly(year + 1, 1, 1).AddDays(-1)
-                : new DateOnly(year, month + 1, 1).AddDays(-1);
-
-            var result = new Dictionary<DateOnly, bool>();
-            for (var date = startDate; date <= endDate; date = date.AddDays(1))
+            try
             {
-                result[date] = entryDates.Contains(date);
-            }
+                var entryDates = await GetStreakCalendarAsync(userId, year, month);
+                var startDate = new DateOnly(year, month, 1);
+                var endDate = month == 12 
+                    ? new DateOnly(year + 1, 1, 1).AddDays(-1)
+                    : new DateOnly(year, month + 1, 1).AddDays(-1);
 
-            return result;
+                var result = new Dictionary<DateOnly, bool>();
+                for (var date = startDate; date <= endDate; date = date.AddDays(1))
+                {
+                    result[date] = entryDates.Contains(date);
+                }
+
+                _logger.LogInformation("Retrieved entry status for UserId: {UserId}, Month: {Month}/{Year}", userId, month, year);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving entry status for UserId: {UserId}, Month: {Month}/{Year}", userId, month, year);
+                throw;
+            }
         }
     }
 }

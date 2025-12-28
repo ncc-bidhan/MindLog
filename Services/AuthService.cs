@@ -1,69 +1,103 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using MindLog.Data;
+using MindLog.Exceptions;
+using MindLog.Helpers;
+using MindLog.Interfaces;
 using MindLog.Models;
 
 namespace MindLog.Services
 {
-    public class AuthService
+    public class AuthService : IAuthService
     {
-        private readonly AppDbContext _context;
+        private readonly IDbContextFactory<AppDbContext> _contextFactory;
+        private readonly ILogger<AuthService> _logger;
 
-        public AuthService(AppDbContext context)
+        public AuthService(IDbContextFactory<AppDbContext> contextFactory)
         {
-            _context = context;
+            _contextFactory = contextFactory;
+            _logger = Logger.GetLogger<AuthService>();
         }
 
         public async Task<User> RegisterAsync(string username, string email, string password)
         {
-            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+            try
             {
-                throw new ArgumentException("All fields are required");
+                ValidationHelper.ValidateUsername(username);
+                ValidationHelper.ValidateEmail(email);
+                ValidationHelper.ValidatePassword(password, Constants.Validation.MinPasswordLength);
+
+                await using var context = _contextFactory.CreateDbContext();
+
+                if (await context.Users.AnyAsync(u => u.Username == username))
+                {
+                    _logger.LogWarning("Registration attempt with existing username: {Username}", username);
+                    throw new ValidationException("Username already exists.");
+                }
+
+                if (await context.Users.AnyAsync(u => u.Email == email))
+                {
+                    _logger.LogWarning("Registration attempt with existing email: {Email}", email);
+                    throw new ValidationException("Email already exists.");
+                }
+
+                var user = new User
+                {
+                    Username = username,
+                    Email = email,
+                    Password = password
+                };
+
+                context.Users.Add(user);
+                await context.SaveChangesAsync();
+
+                _logger.LogInformation("User registered successfully: {Username}", username);
+                return user;
             }
-
-            if (password.Length < 6)
+            catch (ValidationException)
             {
-                throw new ArgumentException("Password must be at least 6 characters long");
+                throw;
             }
-
-            if (await _context.Users.AnyAsync(u => u.Username == username))
+            catch (Exception ex)
             {
-                throw new ArgumentException("Username already exists");
+                _logger.LogError(ex, "Error during user registration: {Username}", username);
+                throw;
             }
-
-            if (await _context.Users.AnyAsync(u => u.Email == email))
-            {
-                throw new ArgumentException("Email already exists");
-            }
-
-            var user = new User
-            {
-                Username = username,
-                Email = email,
-                Password = password
-            };
-
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-
-            return user;
         }
 
         public async Task<User> LoginAsync(string username, string password)
         {
-            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+            try
             {
-                throw new ArgumentException("Username and password are required");
+                ValidationHelper.ValidateRequired(username, "Username");
+                ValidationHelper.ValidateRequired(password, "Password");
+
+                await using var context = _contextFactory.CreateDbContext();
+                var user = await context.Users
+                    .FirstOrDefaultAsync(u => u.Username == username && u.Password == password);
+
+                if (user == null)
+                {
+                    _logger.LogWarning("Failed login attempt for username: {Username}", username);
+                    throw new AuthenticationException("Invalid username or password.");
+                }
+
+                _logger.LogInformation("User logged in successfully: {Username}", username);
+                return user;
             }
-
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Username == username && u.Password == password);
-
-            if (user == null)
+            catch (ValidationException)
             {
-                throw new ArgumentException("Invalid username or password");
+                throw;
             }
-
-            return user!;
+            catch (AuthenticationException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during user login: {Username}", username);
+                throw new AuthenticationException("An error occurred during login. Please try again.");
+            }
         }
     }
 }
