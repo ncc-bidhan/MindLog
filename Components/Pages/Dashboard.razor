@@ -1,0 +1,281 @@
+@page "/"
+@page "/dashboard"
+@inject IAnalyticsService AnalyticsService
+@inject AuthStateService AuthStateService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Insights | MindLog</PageTitle>
+
+<div class="dashboard-background">
+    <div class="animated-gradient"></div>
+    <div class="floating-shapes">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+    </div>
+</div>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 mb-12">
+    @if (AuthStateService.CurrentUser == null)
+    {
+        <div class="d-flex flex-column align-center justify-center mt-16 py-12 glass-card rounded-xl login-card">
+            <div class="icon-circle mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.LockPerson" Color="Color.Primary" Style="font-size: 3rem;" />
+            </div>
+            <MudText Typo="Typo.h4" Class="fw-bold mt-4">Dashboard Locked</MudText>
+            <MudText Typo="Typo.body1" Color="Color.Secondary">Please log in to view your mental landscape.</MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-6 px-10 py-3 rounded-pill btn-primary-gradient" 
+                       OnClick='() => NavigationManager.NavigateTo("/login")'>Sign In</MudButton>
+        </div>
+    }
+    else if (loading)
+    {
+        <div class="d-flex flex-column align-center justify-center" style="min-height: 60vh;">
+            <div class="loading-container">
+                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" Thickness="5" />
+                <div class="loading-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+            <MudText Typo="Typo.h6" Class="mt-4 mud-text-secondary animate-pulse">Mapping your insights...</MudText>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="rounded-xl shadow-lg" Action="Retry" OnClick="LoadAnalyticsData">
+            @errorMessage
+        </MudAlert>
+    }
+    else
+    {
+        <div class="d-flex align-center justify-space-between mb-10">
+            <div>
+                <MudText Typo="Typo.h3" Class="fw-black tracking-tight mb-1">Welcome, @AuthStateService.CurrentUser?.Username</MudText>
+                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary opacity-70">A deep dive into your recent thoughts and moods.</MudText>
+            </div>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" 
+                       OnClick="NavigateToJournal" Size="Size.Large" Class="rounded-xl px-8 py-4 btn-primary-gradient shadow-blue">
+                New Journal Entry
+            </MudButton>
+        </div>
+
+        @if (analyticsData == null || analyticsData.TotalEntries == 0)
+        {
+            <div class="glass-card pa-16 text-center rounded-xl border-dashed border-2 empty-state-card">
+                <div class="icon-circle-large mb-4">
+                    <MudIcon Icon="@Icons.Material.Filled.AutoGraph" Color="Color.Primary" Style="font-size: 3rem;" />
+                </div>
+                <MudText Typo="Typo.h4" Class="mt-4 fw-bold">No Data Points Yet</MudText>
+                <MudText Typo="Typo.body1" Class="mb-8 mud-text-secondary">Start writing to generate your personalized mental health analytics.</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NavigateToJournal" Class="rounded-pill px-8 btn-primary-gradient">Create First Entry</MudButton>
+            </div>
+        }
+        else
+        {
+            <MudGrid Spacing="4">
+                <MudItem xs="12" lg="9">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" sm="4">
+                            <div class="metric-card metric-primary rounded-xl pa-6 shadow-sm h-100">
+                                <div class="d-flex align-center mb-2">
+                                    <div class="icon-bg">
+                                        <MudIcon Icon="@Icons.Material.Filled.MenuBook" Size="Size.Small" />
+                                    </div>
+                                    <MudText Typo="Typo.overline" Class="fw-bold">Total Entries</MudText>
+                                </div>
+                                <MudText Typo="Typo.h3" Class="fw-black">@analyticsData.TotalEntries</MudText>
+                                <div class="metric-decoration"></div>
+                            </div>
+                        </MudItem>
+                        <MudItem xs="12" sm="4">
+                            <div class="metric-card metric-success rounded-xl pa-6 shadow-sm h-100">
+                                <div class="d-flex align-center mb-2">
+                                    <div class="icon-bg">
+                                        <MudIcon Icon="@Icons.Material.Filled.TextFields" Size="Size.Small" />
+                                    </div>
+                                    <MudText Typo="Typo.overline" Class="fw-bold">Words Written</MudText>
+                                </div>
+                                <MudText Typo="Typo.h3" Class="fw-black">@analyticsData.TotalWords</MudText>
+                                <div class="metric-decoration"></div>
+                            </div>
+                        </MudItem>
+                        <MudItem xs="12" sm="4">
+                            <div class="metric-card metric-warning rounded-xl pa-6 shadow-sm h-100">
+                                <div class="d-flex align-center mb-2">
+                                    <div class="icon-bg">
+                                        <MudIcon Icon="@Icons.Material.Filled.Tag" Size="Size.Small" />
+                                    </div>
+                                    <MudText Typo="Typo.overline" Class="fw-bold">Unique Tags</MudText>
+                                </div>
+                                <MudText Typo="Typo.h3" Class="fw-black">@analyticsData.UniqueTagsCount</MudText>
+                                <div class="metric-decoration"></div>
+                            </div>
+                        </MudItem>
+
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="glass-card pa-8 rounded-xl h-100 mood-card" Elevation="0">
+                                <div class="d-flex align-center mb-6">
+                                    <div class="section-icon">
+                                        <MudIcon Icon="@Icons.Material.Filled.EmojiEmotions" Color="Color.Primary" />
+                                    </div>
+                                    <MudText Typo="Typo.h6" Class="fw-bold ml-2">Mood Distribution</MudText>
+                                </div>
+                                @foreach (var mood in analyticsData.MoodDistribution)
+                                {
+                                    var percentage = (double)mood.Count / analyticsData.TotalEntries * 100;
+                                    <div class="mb-5 mood-item">
+                                        <div class="d-flex align-center mb-2">
+                                            <span class="mood-icon-bg mr-3">@mood.MoodIcon</span>
+                                            <MudText Typo="Typo.body1" Class="fw-bold">@mood.MoodName</MudText>
+                                            <MudSpacer />
+                                            <MudText Typo="Typo.body2" Class="mud-text-secondary">@percentage.ToString("F0")%</MudText>
+                                        </div>
+                                        <MudProgressLinear Value="@percentage" Color="Color.Primary" Rounded="true" Size="Size.Medium" Thickness="12" Class="custom-progress" />
+                                    </div>
+                                }
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            <MudPaper Class="glass-card pa-8 rounded-xl h-100 velocity-card" Elevation="0">
+                                <div class="d-flex align-center mb-6">
+                                    <div class="section-icon">
+                                        <MudIcon Icon="@Icons.Material.Filled.Speed" Color="Color.Success" />
+                                    </div>
+                                    <MudText Typo="Typo.h6" Class="fw-bold ml-2">Writing Velocity</MudText>
+                                </div>
+                                @{ var maxWords = analyticsData.WordCountTrends.Max(x => x.WordCount); }
+                                @foreach (var trend in analyticsData.WordCountTrends.OrderByDescending(t => t.Date).Take(7))
+                                {
+                                    var percentage = maxWords > 0 ? (double)trend.WordCount / maxWords * 100 : 0;
+                                    <div class="d-flex align-center mb-4 velocity-item">
+                                        <div style="min-width: 65px;">
+                                            <MudText Typo="Typo.caption" Class="fw-black d-block mb-n1">@trend.Date.ToString("ddd")</MudText>
+                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@trend.Date.ToString("MMM dd")</MudText>
+                                        </div>
+                                        <div class="flex-grow-1 mx-4">
+                                            <MudProgressLinear Value="@percentage" Color="Color.Success" Rounded="true" Size="Size.Small" Thickness="8" />
+                                        </div>
+                                        <MudText Typo="Typo.body2" Class="fw-bold">@trend.WordCount</MudText>
+                                    </div>
+                                }
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12">
+                            <div class="d-flex align-center mb-4">
+                                <div class="section-icon">
+                                    <MudIcon Icon="@Icons.Material.Filled.Topic" Color="Color.Primary" />
+                                </div>
+                                <MudText Typo="Typo.h6" Class="fw-bold ml-2">Topic Analysis</MudText>
+                            </div>
+                            <MudGrid>
+                                <MudItem xs="12" md="4">
+                                    <div class="glass-card pa-6 rounded-xl h-100 trends-card">
+                                        <MudText Typo="Typo.subtitle2" Class="fw-bold mb-4 opacity-70">Top Trends</MudText>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            @foreach (var tag in analyticsData.MostUsedTags)
+                                            {
+                                                <div class="tag-pill px-4 py-2 rounded-pill">
+                                                    <MudText Typo="Typo.caption" Class="fw-bold"># @tag.Tag</MudText>
+                                                    <span class="tag-count">@tag.Count</span>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </MudItem>
+                                <MudItem xs="12" md="8">
+                                    <div class="glass-card rounded-xl h-100 overflow-hidden breakdown-card">
+                                        <MudExpansionPanels MultiExpansion="false" Elevation="0" Class="custom-panels">
+                                            @foreach (var tagBreakdown in tagBreakdowns.Take(6))
+                                            {
+                                                <MudExpansionPanel>
+                                                    <TitleContent>
+                                                        <div class="d-flex align-center w-100 pr-4">
+                                                            <MudIcon Icon="@Icons.Material.Filled.Insights" Color="Color.Primary" Class="mr-3" />
+                                                            <MudText Typo="Typo.body1" Class="fw-bold">@tagBreakdown.Tag</MudText>
+                                                            <MudSpacer />
+                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@tagBreakdown.TotalEntries entries</MudText>
+                                                        </div>
+                                                    </TitleContent>
+                                                    <ChildContent>
+                                                        <div class="pa-4 d-flex flex-wrap gap-4 align-center">
+                                                            <div>
+                                                                <MudText Typo="Typo.caption" Class="mud-text-secondary uppercase">Timeline</MudText>
+                                                                <MudText Typo="Typo.body2" Class="fw-bold">@tagBreakdown.FirstUsed.ToString("MMM yyyy") — @tagBreakdown.LastUsed.ToString("MMM yyyy")</MudText>
+                                                            </div>
+                                                            <div class="flex-grow-1">
+                                                                <MudText Typo="Typo.caption" Class="mud-text-secondary uppercase mb-2">Moods Associated</MudText>
+                                                                <div class="d-flex flex-wrap gap-2">
+                                                                    @foreach (var mood in tagBreakdown.AssociatedMoods)
+                                                                    {
+                                                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" Label="true">@mood.MoodName</MudChip>
+                                                                    }
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </ChildContent>
+                                                </MudExpansionPanel>
+                                            }
+                                        </MudExpansionPanels>
+                                    </div>
+                                </MudItem>
+                            </MudGrid>
+                        </MudItem>
+                    </MudGrid>
+                </MudItem>
+
+                <MudItem xs="12" lg="3">
+                    <div class="sticky-top">
+                        <StreakTracker />
+                    </div>
+                </MudItem>
+            </MudGrid>
+        }
+    }
+</MudContainer>
+
+@code {
+    private AnalyticsData? analyticsData;
+    private List<TagBreakdown> tagBreakdowns = new();
+    private bool loading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthStateService.CurrentUser?.Id == null)
+        {
+            if (!AuthStateService.IsAuthenticated)
+            {
+                NavigationManager.NavigateTo("/login");
+            }
+            loading = false;
+            return;
+        }
+        await LoadAnalyticsData();
+    }
+
+    private async Task LoadAnalyticsData()
+    {
+        if (AuthStateService.CurrentUser?.Id == null) return;
+        loading = true;
+        errorMessage = null;
+        try
+        {
+            analyticsData = await AnalyticsService.GetAnalyticsDataAsync(AuthStateService.CurrentUser.Id);
+            tagBreakdowns = await AnalyticsService.GetTagBreakdownAsync(AuthStateService.CurrentUser.Id);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading analytics: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void NavigateToJournal() => NavigationManager.NavigateTo("/journal");
+}

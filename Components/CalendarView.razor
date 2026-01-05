@@ -4,24 +4,24 @@
 @inject AuthStateService AuthStateService
 @inject NavigationManager NavigationManager
 
-<div class="calendar-container bg-white rounded-lg shadow-lg p-4 max-w-6xl mx-auto">
+<div class="calendar-container rounded-lg shadow-lg p-4 max-w-6xl mx-auto">
     <!-- Calendar Header with Navigation -->
     <div class="calendar-header flex items-center justify-between mb-6">
         <div class="flex items-center space-x-4">
             <button @onclick="PreviousMonth" 
-                    class="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                    class="p-2 nav-btn rounded-lg transition-colors duration-200"
                     aria-label="Previous month">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                 </svg>
             </button>
             
-            <h2 class="text-2xl font-bold text-gray-800 min-w-[200px] text-center">
+            <h2 class="text-2xl font-bold min-w-[200px] text-center">
                 @CurrentMonth.ToString("MMMM yyyy")
             </h2>
             
             <button @onclick="NextMonth" 
-                    class="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                    class="p-2 nav-btn rounded-lg transition-colors duration-200"
                     aria-label="Next month">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -32,7 +32,7 @@
         <!-- Quick Actions -->
         <div class="flex justify-center mb-4">
             <button @onclick="CreateQuickEntry" 
-                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2">
+                    class="px-4 py-2 btn-primary rounded-lg transition-colors flex items-center space-x-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
@@ -42,23 +42,23 @@
 
         <!-- View Controls -->
         <div class="flex items-center space-x-2">
-            <div class="view-tabs flex bg-gray-100 rounded-lg p-1">
+            <div class="view-tabs flex rounded-lg p-1">
                 <button @onclick="() => SetView(CalendarViewType.Month)" 
-                        class="px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200 @(CurrentView == CalendarViewType.Month ? "bg-white shadow-sm text-blue-600" : "text-gray-600 hover:text-gray-800")">
+                        class="px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200 @(CurrentView == CalendarViewType.Month ? "active-tab shadow-sm" : "inactive-tab")">
                     Month
                 </button>
                 <button @onclick="() => SetView(CalendarViewType.Week)" 
-                        class="px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200 @(CurrentView == CalendarViewType.Week ? "bg-white shadow-sm text-blue-600" : "text-gray-600 hover:text-gray-800")">
+                        class="px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200 @(CurrentView == CalendarViewType.Week ? "active-tab shadow-sm" : "inactive-tab")">
                     Week
                 </button>
                 <button @onclick="() => SetView(CalendarViewType.Day)" 
-                        class="px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200 @(CurrentView == CalendarViewType.Day ? "bg-white shadow-sm text-blue-600" : "text-gray-600 hover:text-gray-800")">
+                        class="px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200 @(CurrentView == CalendarViewType.Day ? "active-tab shadow-sm" : "inactive-tab")">
                     Day
                 </button>
             </div>
             
             <button @onclick="GoToToday" 
-                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium">
+                    class="px-4 py-2 btn-primary rounded-lg transition-colors duration-200 text-sm font-medium">
                 Today
             </button>
         </div>
@@ -66,12 +66,12 @@
 
     <!-- Mood Legend -->
     <div class="mood-legend mb-4 flex flex-wrap gap-2 text-xs">
-        <span class="text-gray-600 font-medium">Moods:</span>
+        <span class="font-medium text-secondary">Moods:</span>
         @foreach (var mood in MoodDefinitions.PredefinedMoods.Where(m => m.IsActive).Take(6))
         {
             <div class="flex items-center space-x-1">
-                <div class="w-3 h-3 rounded-full border border-gray-300" style="background-color: @mood.Color"></div>
-                <span class="text-gray-600">@mood.Icon</span>
+                <div class="w-3 h-3 rounded-full border border-secondary" style="background-color: @mood.Color"></div>
+                <span class="text-secondary">@mood.Icon</span>
             </div>
         }
     </div>
@@ -84,7 +84,7 @@
             <div class="weekday-headers grid grid-cols-7 gap-1 mb-2">
                 @foreach (var day in WeekdayHeaders)
                 {
-                    <div class="text-center font-semibold text-sm text-gray-600 py-2">
+                    <div class="text-center font-semibold text-sm text-secondary py-2">
                         @day
                     </div>
                 }
@@ -101,11 +101,11 @@
                     var isCurrentMonth = day.Date.Month == CurrentMonth.Month && day.Date.Year == CurrentMonth.Year;
                     
                     <div class="calendar-day relative group cursor-pointer transition-all duration-200
-                         @(isToday ? "ring-2 ring-blue-500" : "")
-                         @(isSelected ? "bg-blue-50 border-blue-500 border" : "")
+                         @(isToday ? "today-ring" : "")
+                         @(isSelected ? "selected-day" : "")
                          @(!isCurrentMonth ? "opacity-40" : "")
-                         @(hasEntry ? "hover:shadow-md" : "hover:bg-gray-50")
-                         rounded-lg p-2 min-h-[80px] border border-gray-200"
+                         @(hasEntry ? "hover:shadow-md" : "hover-day")
+                         rounded-lg p-2 min-h-[80px]"
                          @onclick="() => SelectDate(day.Date)"
                          role="button"
                          tabindex="0"
@@ -113,7 +113,7 @@
                          @onkeydown="e => HandleKeydown(e, day.Date)">
                         
                         <!-- Date Number -->
-                        <div class="date-number font-medium text-sm @(isToday ? "text-blue-600 font-bold" : "text-gray-700")">
+                        <div class="date-number font-medium text-sm @(isToday ? "today-number font-bold" : "text-primary")">
                             @day.Date.Day
                         </div>
 
@@ -132,13 +132,13 @@
                                     }
                                     @if (entryMoods.Count > 3)
                                     {
-                                        <span class="text-xs text-gray-500">+@(entryMoods.Count - 3)</span>
+                                        <span class="text-xs text-tertiary">+@(entryMoods.Count - 3)</span>
                                     }
                                 </div>
                                 
                                 <!-- Entry preview -->
                                 <div class="entry-preview">
-                                    <div class="text-xs text-gray-600 truncate" title="@EntryPreviews[day.Date]">
+                                    <div class="text-xs text-secondary truncate" title="@EntryPreviews[day.Date]">
                                         @EntryPreviews[day.Date]
                                     </div>
                                 </div>
@@ -148,9 +148,9 @@
                         <!-- Hover tooltip for entry details -->
                         @if (hasEntry)
                         {
-                            <div class="absolute z-10 invisible group-hover:visible bg-gray-900 text-white p-2 rounded-lg text-xs bottom-full left-1/2 transform -translate-x-1/2 mb-2 whitespace-nowrap shadow-lg">
+                            <div class="absolute z-10 invisible group-hover:visible tooltip-content p-2 rounded-lg text-xs bottom-full left-1/2 transform -translate-x-1/2 mb-2 whitespace-nowrap shadow-lg">
                                 <div class="font-semibold">@EntryPreviews[day.Date]</div>
-                                <div class="text-gray-300">
+                                <div class="text-tertiary">
                                     @if (entryMoods.Any())
                                     {
                                         @string.Join(", ", entryMoods.Select(m => m.Icon))
@@ -160,7 +160,7 @@
                                         <text>No mood recorded</text>
                                     }
                                 </div>
-                                <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
+                                <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 rotate-45 w-2 h-2 tooltip-arrow"></div>
                             </div>
                         }
                     </div>
@@ -174,9 +174,9 @@
             <div class="grid grid-cols-7 gap-2 mb-4">
                 @foreach (var day in WeekDays)
                 {
-                    <div class="text-center font-semibold text-sm p-2 @(!day.IsCurrentMonth ? "text-gray-400" : "text-gray-700")">
+                    <div class="text-center font-semibold text-sm p-2 @(!day.IsCurrentMonth ? "text-tertiary" : "text-primary")">
                         <div>@day.Date.ToString("ddd")</div>
-                        <div class="text-lg @(day.Date == DateOnly.FromDateTime(DateTime.Today) ? "text-blue-600 font-bold" : "")">@day.Date.Day</div>
+                        <div class="text-lg @(day.Date == DateOnly.FromDateTime(DateTime.Today) ? "today-number font-bold" : "")">@day.Date.Day</div>
                     </div>
                 }
             </div>
@@ -187,7 +187,7 @@
                     var hasEntry = EntryDates.ContainsKey(day.Date);
                     var entryMoods = hasEntry ? EntryDates[day.Date] : new List<Mood>();
                     
-                    <div class="min-h-[100px] border border-gray-200 rounded-lg p-2 @(!day.IsCurrentMonth ? "bg-gray-50 opacity-60" : "bg-white") @(day.Date == DateOnly.FromDateTime(DateTime.Today) ? "ring-2 ring-blue-500" : "") hover:shadow-md transition-shadow cursor-pointer"
+                    <div class="calendar-day min-h-[100px] rounded-lg p-2 @(!day.IsCurrentMonth ? "other-month opacity-60" : "calendar-day-bg") @(day.Date == DateOnly.FromDateTime(DateTime.Today) ? "today-ring" : "") hover:shadow-md transition-shadow cursor-pointer"
                          @onclick="() => SelectDate(day.Date)">
                         
                         @if (hasEntry)
@@ -199,10 +199,10 @@
                                         <div class="w-2 h-2 rounded-full" style="background-color: @mood.Color" title="@mood.Name"></div>
                                     }
                                 </div>
-                                <div class="text-xs text-gray-600 truncate" title="@EntryPreviews[day.Date]">
+                                <div class="text-xs text-secondary truncate" title="@EntryPreviews[day.Date]">
                                     @EntryPreviews[day.Date]
                                 </div>
-                                <div class="text-xs text-blue-600 font-medium mt-1">
+                                <div class="text-xs today-number font-medium mt-1">
                                     @if (entryMoods.Any())
                                     {
                                         <span>@entryMoods.Count</span>
@@ -212,7 +212,7 @@
                         }
                         else
                         {
-                            <div class="text-gray-400 text-xs text-center mt-4">
+                            <div class="text-tertiary text-xs text-center mt-4">
                                 No entries
                             </div>
                         }
@@ -226,13 +226,13 @@
         <div class="day-view">
             @if (SelectedDate.HasValue)
             {
-                <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="calendar-card rounded-lg shadow-lg p-6">
                     <div class="text-center mb-6">
-                        <h3 class="text-xl font-semibold text-gray-800 mb-2">
+                        <h3 class="text-xl font-semibold text-primary mb-2">
                             @SelectedDate.Value.ToString("dddd, MMMM d, yyyy")
                             @if (SelectedDate.Value == DateOnly.FromDateTime(DateTime.Today))
                             {
-                                <span class="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Today</span>
+                                <span class="ml-2 px-2 py-1 today-badge text-xs rounded-full">Today</span>
                             }
                         </h3>
                     </div>
@@ -242,10 +242,10 @@
                         <div class="space-y-4">
                             @foreach (var entry in SelectedDateEntries)
                             {
-                                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                <div class="border border-primary-theme rounded-lg p-4 hover:shadow-md transition-shadow">
                                     <div class="flex justify-between items-start mb-2">
-                                        <h4 class="font-semibold text-gray-800">@entry.Title</h4>
-                                        <div class="text-sm text-gray-500">
+                                        <h4 class="font-semibold text-primary">@entry.Title</h4>
+                                        <div class="text-sm text-tertiary">
                                             @entry.CreatedAt.ToString("h:mm tt")
                                         </div>
                                     </div>
@@ -256,7 +256,7 @@
                                             @foreach (var jem in entry.JournalEntryMoods.Take(1))
                                             {
                                                 <span class="text-lg" title="@jem.Mood.Name">@jem.Mood.Icon</span>
-                                                <span class="text-sm text-gray-600">@jem.Mood.Name</span>
+                                                <span class="text-sm text-secondary">@jem.Mood.Name</span>
                                             }
                                         }
                                         @if (!string.IsNullOrEmpty(entry.Tags))
@@ -265,23 +265,23 @@
                                             <div class="flex space-x-1">
                                                 @foreach (var tag in tagList.Take(3))
                                                 {
-                                                    <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">@tag</span>
+                                                    <span class="px-2 py-1 tag-badge text-xs rounded-full">@tag</span>
                                                 }
                                                 @if (tagList.Count > 3)
                                                 {
-                                                    <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">+@(tagList.Count - 3)</span>
+                                                    <span class="px-2 py-1 tag-badge text-xs rounded-full">+@(tagList.Count - 3)</span>
                                                 }
                                             </div>
                                         }
                                     </div>
                                     
-                                    <p class="text-gray-600 text-sm mb-3">
+                                    <p class="text-secondary text-sm mb-3">
                                         @(entry.Content.Length > 150 ? entry.Content.Substring(0, 150) + "..." : entry.Content)
                                     </p>
                                     
                                     <div class="flex justify-end">
                                         <button @onclick="() => ViewEntry(entry.Id)" 
-                                                class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                                class="today-number hover:opacity-80 text-sm font-medium">
                                             Read More →
                                         </button>
                                     </div>
@@ -292,14 +292,14 @@
                     else
                     {
                         <div class="text-center py-8">
-                            <div class="text-gray-400 mb-4">
+                            <div class="text-tertiary mb-4">
                                 <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.247 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
                                 </svg>
                             </div>
-                            <p class="text-gray-600 mb-4">No journal entries for this date</p>
+                            <p class="text-secondary mb-4">No journal entries for this date</p>
                             <button @onclick="CreateNewEntry" 
-                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                    class="px-4 py-2 btn-primary rounded-lg transition-colors">
                                 Create Entry
                             </button>
                         </div>
@@ -309,9 +309,9 @@
             else
             {
                 <div class="text-center py-8">
-                    <p class="text-gray-500 mb-4">Select a date to view its entries</p>
+                    <p class="text-tertiary mb-4">Select a date to view its entries</p>
                     <button @onclick="() => SetView(CalendarViewType.Month)" 
-                            class="text-blue-600 hover:text-blue-800 underline">
+                            class="today-number hover:underline">
                         Go to Month view
                     </button>
                 </div>
@@ -322,10 +322,11 @@
     <!-- Loading State -->
     @if (isLoading)
     {
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg p-6 shadow-xl">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p class="mt-2 text-gray-600">Loading calendar...</p>
+        <div class="fixed inset-0 loading-overlay flex items-center justify-center z-50">
+            <div class="calendar-card rounded-lg p-6 shadow-xl">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 loading-spinner mx-auto">
+                </div>
+                <p class="mt-2 text-secondary">Loading calendar...</p>
             </div>
         </div>
     }
@@ -334,14 +335,14 @@
 <!-- Selected Date Entry Modal -->
 @if (ShowEntryModal && SelectedDate != null)
 {
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-xl">
-            <div class="sticky top-0 bg-white border-b p-4 flex items-center justify-between">
-                <h3 class="text-xl font-bold text-gray-800">
+    <div class="fixed inset-0 loading-overlay flex items-center justify-center z-50 p-4">
+        <div class="calendar-card rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-xl">
+            <div class="sticky top-0 calendar-card border-b border-primary-theme p-4 flex items-center justify-between">
+                <h3 class="text-xl font-bold text-primary">
                     Entries for @SelectedDate.Value.ToString("MMMM d, yyyy")
                 </h3>
                 <button @onclick="CloseEntryModal" 
-                        class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                        class="p-2 nav-btn rounded-lg transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -353,9 +354,9 @@
                 {
                     @foreach (var entry in SelectedDateEntries)
                     {
-                        <div class="border-b last:border-b-0 pb-4 mb-4 last:pb-0 last:mb-0">
+                        <div class="border-b last:border-b-0 pb-4 mb-4 last:pb-0 last:mb-0 border-primary-theme">
                             <div class="flex items-start justify-between mb-2">
-                                <h4 class="font-semibold text-gray-800">@entry.Title</h4>
+                                <h4 class="font-semibold text-primary">@entry.Title</h4>
                                 <div class="flex items-center space-x-2">
                                     @if (entry.JournalEntryMoods.Any())
                                     {
@@ -366,14 +367,14 @@
                                     }
                                 </div>
                             </div>
-                            <p class="text-gray-600 text-sm mb-2">@(entry.Content.Length > 200 ? entry.Content.Substring(0, 200) + "..." : entry.Content)</p>
+                            <p class="text-secondary text-sm mb-2">@(entry.Content.Length > 200 ? entry.Content.Substring(0, 200) + "..." : entry.Content)</p>
                             <div class="flex items-center justify-between">
-                                <div class="text-xs text-gray-500">
+                                <div class="text-xs text-tertiary">
                                     Created: @entry.CreatedAt.ToString("MMM d, yyyy h:mm tt")
                                 </div>
                                 <button @onclick="() => ViewEntry(entry.Id)" 
-                                        class="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                                    Read More
+                                        class="today-number hover:underline text-sm font-medium">
+                                    Read Full Entry
                                 </button>
                             </div>
                         </div>
@@ -382,14 +383,14 @@
                 else
                 {
                     <div class="text-center py-8">
-                        <div class="text-gray-400 mb-4">
+                        <div class="text-tertiary mb-4">
                             <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.247 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
                             </svg>
                         </div>
-                        <p class="text-gray-600 mb-4">No journal entries for this date</p>
+                        <p class="text-secondary mb-4">No journal entries for this date</p>
                         <button @onclick="CreateNewEntry" 
-                                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                class="px-4 py-2 btn-primary rounded-lg transition-colors">
                             Create Entry
                         </button>
                     </div>

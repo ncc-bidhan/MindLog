@@ -1,135 +1,132 @@
 .streak-container {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 12px;
-    padding: 24px;
-    color: white;
-    margin: 20px 0;
-    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+  background: var(--sidebar-bg);
+  border-radius: 12px;
+  padding: 24px;
+  color: white;
+  margin: 20px 0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
 }
 
 .streak-title {
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin-bottom: 20px;
-    text-align: center;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 20px;
+  text-align: center;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .streak-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 16px;
-    margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
 .streak-card {
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(10px);
-    border-radius: 8px;
-    padding: 16px;
-    text-align: center;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .streak-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
 .streak-number {
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin-bottom: 4px;
-    line-height: 1;
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+  line-height: 1;
 }
 
 .streak-label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    margin-bottom: 2px;
-    opacity: 0.9;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 2px;
+  opacity: 0.9;
 }
 
 .streak-unit {
-    font-size: 0.75rem;
-    opacity: 0.7;
+  font-size: 0.75rem;
+  opacity: 0.7;
 }
 
 .current-streak {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: var(--streak-gradient);
 }
 
 .longest-streak {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  background: var(--record-gradient);
 }
 
 .total-entries {
-    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  background: var(--total-gradient);
 }
 
 .missed-days {
-    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  background: var(--missed-gradient);
 }
 
 .streak-encouragement,
 .streak-motivation {
-    text-align: center;
-    margin: 16px 0;
-    padding: 12px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    backdrop-filter: blur(5px);
+  text-align: center;
+  margin: 16px 0;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  backdrop-filter: blur(5px);
 }
 
 .streak-encouragement p,
 .streak-motivation p {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 500;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
 }
 
 .last-entry {
-    text-align: center;
-    opacity: 0.8;
-    font-size: 0.875rem;
+  text-align: center;
+  opacity: 0.8;
+  font-size: 0.875rem;
 }
 
-/* Dark mode adjustments */
+/* Dark mode adjustments - handled by var(--sidebar-bg) */
 @media (prefers-color-scheme: dark) {
-    .streak-container {
-        background: linear-gradient(135deg, #4c5c7d 0%, #5d4b63 100%);
-    }
 }
 
 /* Mobile responsiveness */
 @media (max-width: 768px) {
-    .streak-stats {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-    }
-    
-    .streak-number {
-        font-size: 2rem;
-    }
-    
-    .streak-title {
-        font-size: 1.25rem;
-    }
+  .streak-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .streak-number {
+    font-size: 2rem;
+  }
+
+  .streak-title {
+    font-size: 1.25rem;
+  }
 }
 
 @media (max-width: 480px) {
-    .streak-container {
-        padding: 16px;
-        margin: 12px 0;
-    }
-    
-    .streak-stats {
-        grid-template-columns: 1fr;
-        gap: 8px;
-    }
-    
-    .streak-card {
-        padding: 12px;
-    }
+  .streak-container {
+    padding: 16px;
+    margin: 12px 0;
+  }
+
+  .streak-stats {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .streak-card {
+    padding: 12px;
+  }
 }

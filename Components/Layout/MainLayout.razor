@@ -1,7 +1,13 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @inject NavigationManager NavigationManager
 @inject ToastService ToastService
 @inject ThemeService ThemeService
+
+<MudThemeProvider IsDarkMode="@ThemeService.IsDarkMode" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
 
 <CascadingValue Value="@ThemeService.IsDarkMode" Name="IsDarkTheme">
     @if (ShouldShowSidebar)
