@@ -40,6 +40,9 @@ namespace MindLog.Services
             {
                 _logger.LogInformation("ExportJournalsToPdfAsync: Starting for UserId: {UserId}", userId);
                 
+                var user = await _context.Users.FindAsync(userId);
+                var userName = user?.Username ?? "MindLog User";
+                
                 var entries = await GetEntriesByDateRangeAsync(userId, startDate, endDate);
                 _logger.LogInformation("ExportJournalsToPdfAsync: Got {Count} entries", entries.Count);
                 
@@ -49,13 +52,14 @@ namespace MindLog.Services
                     return Array.Empty<byte>();
                 }
 
-                var document = CreateJournalDocument(entries, startDate, endDate);
+                using (var document = CreateJournalDocument(entries, startDate, endDate, userName))
+                {
+                    using var memoryStream = new MemoryStream();
+                    document.Save(memoryStream);
 
-                using var memoryStream = new MemoryStream();
-                document.Save(memoryStream);
-                
-                _logger.LogInformation("ExportJournalsToPdfAsync: Document saved successfully for UserId: {UserId}, Size: {Size} bytes", userId, memoryStream.Length);
-                return memoryStream.ToArray();
+                    _logger.LogInformation("ExportJournalsToPdfAsync: Document saved successfully for UserId: {UserId}, Size: {Size} bytes", userId, memoryStream.Length);
+                    return memoryStream.ToArray();
+                }
             }
             catch (Exception ex)
             {
@@ -81,6 +85,10 @@ namespace MindLog.Services
                 }
 
                 var cacheDir = FileSystem.Current.CacheDirectory;
+                
+                // Cleanup old export files to save space
+                CleanupOldExports(cacheDir);
+
                 var fullPath = Path.Combine(cacheDir, fileName);
                 
                 var directory = Path.GetDirectoryName(fullPath);
@@ -110,6 +118,36 @@ namespace MindLog.Services
             }
         }
 
+        private void CleanupOldExports(string cacheDir)
+        {
+            try
+            {
+                var directory = new DirectoryInfo(cacheDir);
+                if (!directory.Exists) return;
+
+                var oldFiles = directory.GetFiles("MindLog_Journal_Export_*.pdf")
+                    .Where(f => f.LastWriteTime < DateTime.Now.AddHours(-1))
+                    .ToList();
+
+                foreach (var file in oldFiles)
+                {
+                    try
+                    {
+                        file.Delete();
+                        _logger.LogInformation("Deleted old export file: {FileName}", file.Name);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Could not delete old export file: {FileName}", file.Name);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error cleaning up old export files");
+            }
+        }
+
         private async Task<List<JournalEntry>> GetEntriesByDateRangeAsync(int userId, DateOnly? startDate, DateOnly? endDate)
         {
             try
@@ -136,63 +174,145 @@ namespace MindLog.Services
             }
         }
 
-        private PdfDocument CreateJournalDocument(List<JournalEntry> entries, DateOnly? startDate, DateOnly? endDate)
+        private class PdfGenerationContext
+        {
+            public PdfDocument Document { get; }
+            public PdfPage CurrentPage { get; set; }
+            public XGraphics Graphics { get; set; }
+            public double YPosition { get; set; }
+            public PdfLayout Layout { get; }
+            public bool IsFirstPage { get; set; } = true;
+
+            public PdfGenerationContext(PdfDocument document, PdfLayout layout)
+            {
+                Document = document;
+                Layout = layout;
+                AddNewPage();
+            }
+
+            public void AddNewPage()
+            {
+                // Draw footer on the previous page if it's not the first page
+                if (!IsFirstPage && Graphics != null)
+                {
+                    DrawFooter();
+                    Graphics.Dispose();
+                }
+                
+                CurrentPage = Document.AddPage();
+                CurrentPage.Size = PdfSharpCore.PageSize.A4;
+                Graphics = XGraphics.FromPdfPage(CurrentPage);
+                YPosition = Layout.TopMargin;
+                
+                // Reset the first page flag after creating the first page
+                if (IsFirstPage)
+                {
+                    IsFirstPage = false;
+                }
+            }
+
+            public void DrawFooter()
+            {
+                var footerText = $"Page {Document.PageCount}";
+                var footerSize = Graphics.MeasureString(footerText, Layout.FooterFont);
+                Graphics.DrawString(footerText, Layout.FooterFont, XBrushes.Gray,
+                    Layout.PageWidth - Layout.RightMargin - footerSize.Width, Layout.PageHeight - 30);
+                
+                var dateText = DateTime.Now.ToString("MMMM d, yyyy HH:mm");
+                Graphics.DrawString($"Exported from MindLog on {dateText}", Layout.FooterFont, XBrushes.LightGray,
+                    Layout.LeftMargin, Layout.PageHeight - 30);
+            }
+
+            public void EnsureSpace(double height)
+            {
+                if (YPosition + height > Layout.PageBottomThreshold)
+                {
+                    AddNewPage();
+                }
+            }
+
+            public void FinalizeDocument()
+            {
+                // Draw footer on the last page
+                if (Graphics != null)
+                {
+                    DrawFooter();
+                    Graphics.Dispose();
+                }
+            }
+        }
+
+        private PdfDocument CreateJournalDocument(List<JournalEntry> entries, DateOnly? startDate, DateOnly? endDate, string userName)
         {
             var document = new PdfDocument();
-            document.Info.Title = "MindLog Journal Entries";
+            document.Info.Title = $"MindLog Journal - {userName}";
             document.Info.Subject = "Journal Export";
             document.Info.Author = "MindLog";
 
-            var page = document.AddPage();
-            page.Size = PdfSharpCore.PageSize.A4;
-            var graphics = XGraphics.FromPdfPage(page);
-
-            var layout = new PdfLayout(graphics);
-            var yPosition = DrawDocumentHeader(graphics, layout, startDate, endDate);
-
-            if (!entries.Any())
+            var layout = new PdfLayout();
+            var context = new PdfGenerationContext(document, layout);
+            
+            try
             {
-                DrawNoEntriesMessage(graphics, layout);
-                graphics.Dispose();
-                return document;
-            }
+                DrawDocumentHeader(context, startDate, endDate, userName);
 
-            foreach (var entry in entries)
-            {
-                if (yPosition > layout.PageBottomThreshold)
+                if (!entries.Any())
                 {
-                    DrawFooter(graphics, document.PageCount, layout);
-                    graphics.Dispose();
-                    page = document.AddPage();
-                    graphics = XGraphics.FromPdfPage(page);
-                    yPosition = layout.TopMargin;
+                    DrawNoEntriesMessage(context);
+                }
+                else
+                {
+                    foreach (var entry in entries)
+                    {
+                        DrawJournalEntry(context, entry);
+                    }
                 }
 
-                yPosition = DrawJournalEntry(graphics, layout, entry, yPosition, document, page);
+                // Make sure the last page has a footer
+                context.FinalizeDocument();
+                
+                return document;
             }
-
-            DrawFooter(graphics, document.PageCount, layout);
-            graphics.Dispose();
-            return document;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating PDF document");
+                context.FinalizeDocument();
+                throw;
+            }
         }
 
-        private double DrawDocumentHeader(XGraphics graphics, PdfLayout layout, DateOnly? startDate, DateOnly? endDate)
+        private void DrawDocumentHeader(PdfGenerationContext context, DateOnly? startDate, DateOnly? endDate, string userName)
         {
-            var yPosition = layout.TopMargin;
+            var layout = context.Layout;
+
+            // Draw a nice header background
+            var headerRect = new XRect(0, 0, layout.PageWidth, 140);
+            var headerBrush = new XLinearGradientBrush(
+                new XPoint(0, 0), new XPoint(layout.PageWidth, 140),
+                XColor.FromArgb(255, 30, 58, 138), // Dark Blue
+                XColor.FromArgb(255, 59, 130, 246) // Blue
+            );
+            context.Graphics.DrawRectangle(headerBrush, headerRect);
+
+            var yPos = 40.0;
             var titleText = "MindLog Journal Export";
-            var titleSize = graphics.MeasureString(titleText, layout.TitleFont);
-            graphics.DrawString(titleText, layout.TitleFont, layout.TitleBrush,
-                layout.LeftMargin + (layout.ContentWidth - titleSize.Width) / 2, yPosition);
-            yPosition += 35;
+            var titleSize = context.Graphics.MeasureString(titleText, layout.TitleFont);
+            context.Graphics.DrawString(titleText, layout.TitleFont, XBrushes.White,
+                (layout.PageWidth - titleSize.Width) / 2, yPos);
+            
+            yPos += 35;
+            var userText = $"Journal for {userName}";
+            var userSize = context.Graphics.MeasureString(userText, layout.HeaderFont);
+            context.Graphics.DrawString(userText, context.Layout.HeaderFont, XBrushes.WhiteSmoke,
+                (layout.PageWidth - userSize.Width) / 2, yPos);
 
+            yPos += 30;
             var dateRangeText = GetDateRangeText(startDate, endDate);
-            var dateSize = graphics.MeasureString(dateRangeText, layout.DateFont);
-            graphics.DrawString(dateRangeText, layout.DateFont, layout.GrayBrush,
-                layout.LeftMargin + (layout.ContentWidth - dateSize.Width) / 2, yPosition);
-            yPosition += 30;
+            var dateSize = context.Graphics.MeasureString(dateRangeText, layout.DateFont);
+            context.Graphics.DrawString(dateRangeText, layout.DateFont, XBrushes.LightGray,
+                (layout.PageWidth - dateSize.Width) / 2, yPos);
 
-            graphics.DrawLine(new XPen(XColors.LightGray, 1), layout.LeftMargin, yPosition, layout.PageWidth - layout.RightMargin, yPosition);
-            return yPosition + 20;
+            context.YPosition = 160;
         }
 
         private string GetDateRangeText(DateOnly? startDate, DateOnly? endDate) => (startDate, endDate) switch
@@ -203,119 +323,187 @@ namespace MindLog.Services
             _ => "All Entries"
         };
 
-        private void DrawNoEntriesMessage(XGraphics graphics, PdfLayout layout)
+        private XColor ParseColor(string htmlColor)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(htmlColor) || !htmlColor.StartsWith("#") || htmlColor.Length < 7)
+                    return XColor.FromArgb(255, 107, 114, 128); // Default gray
+
+                return XColor.FromArgb(
+                    255,
+                    Convert.ToInt32(htmlColor.Substring(1, 2), 16),
+                    Convert.ToInt32(htmlColor.Substring(3, 2), 16),
+                    Convert.ToInt32(htmlColor.Substring(5, 2), 16)
+                );
+            }
+            catch
+            {
+                return XColor.FromArgb(255, 107, 114, 128);
+            }
+        }
+
+        private void DrawNoEntriesMessage(PdfGenerationContext context)
         {
             var noText = "No journal entries found for the selected date range.";
-            var noSize = graphics.MeasureString(noText, layout.NormalFont);
-            graphics.DrawString(noText, layout.NormalFont, layout.TextBrush,
-                layout.LeftMargin + (layout.ContentWidth - noSize.Width) / 2, layout.TopMargin + 20);
+            var noSize = context.Graphics.MeasureString(noText, context.Layout.NormalFont);
+            context.Graphics.DrawString(noText, context.Layout.NormalFont, context.Layout.TextBrush,
+                context.Layout.LeftMargin + (context.Layout.ContentWidth - noSize.Width) / 2, context.YPosition + 40);
         }
 
-        private double DrawJournalEntry(XGraphics graphics, PdfLayout layout, JournalEntry entry, double yPosition, PdfDocument document, PdfPage page)
+        private void DrawJournalEntry(PdfGenerationContext context, JournalEntry entry)
         {
-            var entryTop = yPosition;
+            var layout = context.Layout;
+            
+            // Calculate the total height needed for this entry
+            double headerHeight = 30.0;
+            double metadataHeight = 30.0; // Approximate height for date and tags
+            double contentHeight = EstimateContentHeight(entry.Content, layout.NormalFont, layout.ContentWidth - 20, context.Graphics);
+            double moodsHeight = entry.JournalEntryMoods?.Any() == true ? 25.0 : 0.0;
+            double totalHeight = headerHeight + 10 + metadataHeight + contentHeight + moodsHeight + 30; // +30 for spacing and border
+            
+            // Ensure we have enough space for the entire entry
+            context.EnsureSpace(totalHeight);
+            
+            // Entry Header Background (light gray)
+            var headerRect = new XRect(layout.LeftMargin, context.YPosition, layout.ContentWidth, headerHeight);
+            context.Graphics.DrawRectangle(new XSolidBrush(XColor.FromArgb(243, 244, 246)), headerRect);
+            
+            // Title
+            context.Graphics.DrawString(entry.Title, layout.HeaderFont, layout.TitleBrush, layout.LeftMargin + 10, context.YPosition + 20);
+            context.YPosition += headerHeight + 10;
 
-            graphics.DrawString(entry.Title, layout.HeaderFont, layout.TitleBrush, layout.LeftMargin, yPosition);
-            yPosition += graphics.MeasureString(entry.Title, layout.HeaderFont).Height + 8;
+            // Metadata (Date, Tags)
+            context.YPosition = DrawEntryMetadata(context, entry);
+            
+            // Content
+            context.YPosition = DrawEntryContent(context, entry);
+            
+            // Moods
+            context.YPosition = DrawEntryMoods(context, entry);
 
-            yPosition = DrawEntryMetadata(graphics, layout, entry, yPosition);
-            yPosition += 5;
-
-            yPosition = DrawEntryContent(graphics, layout, entry, yPosition, document, page);
-            yPosition = DrawEntryMoods(graphics, layout, entry, yPosition);
-
-            var entryHeight = yPosition - entryTop;
-            graphics.DrawRectangle(new XPen(XColors.LightGray, 1), layout.LeftMargin, entryTop, layout.ContentWidth, entryHeight);
-
-            return yPosition + 20;
+            // Draw card border
+            // If it spanned multiple pages, we draw the bottom line on the current page.
+            context.Graphics.DrawLine(new XPen(XColor.FromArgb(229, 231, 235), 1), layout.LeftMargin, context.YPosition, layout.PageWidth - layout.RightMargin, context.YPosition);
+            
+            context.YPosition += 30; // Space between entries
         }
 
-        private double DrawEntryMetadata(XGraphics graphics, PdfLayout layout, JournalEntry entry, double yPosition)
+        private double EstimateContentHeight(string content, XFont font, double maxWidth, XGraphics graphics)
         {
+            if (string.IsNullOrEmpty(content)) return 20.0;
+            
+            var lines = WordWrap(content, font, maxWidth, graphics);
+            return lines.Count * 15.0; // 15 points per line
+        }
+
+        private double DrawEntryMetadata(PdfGenerationContext context, JournalEntry entry)
+        {
+            var layout = context.Layout;
+            var yPos = context.YPosition;
+
+            // Remove emojis if they cause rendering issues, or use text equivalents
             var dateText = $"Date: {entry.EntryDate:MMMM d, yyyy}";
             if (entry.UpdatedAt > entry.CreatedAt)
                 dateText += $"  |  Updated: {entry.UpdatedAt:MMMM d, yyyy}";
-            graphics.DrawString(dateText, layout.DateFont, layout.GrayBrush, layout.LeftMargin, yPosition);
-            yPosition += graphics.MeasureString(dateText, layout.DateFont).Height + 8;
+            
+            context.Graphics.DrawString(dateText, layout.DateFont, layout.GrayBrush, layout.LeftMargin + 10, yPos);
+            yPos += 15;
 
             if (!string.IsNullOrEmpty(entry.Tags))
             {
                 var tagsText = $"Tags: {entry.Tags}";
-                graphics.DrawString(tagsText, layout.DateFont, layout.GrayBrush, layout.LeftMargin, yPosition);
-                yPosition += graphics.MeasureString(tagsText, layout.DateFont).Height + 8;
+                context.Graphics.DrawString(tagsText, layout.DateFont, layout.GrayBrush, layout.LeftMargin + 10, yPos);
+                yPos += 15;
             }
 
-            return yPosition;
+            return yPos + 5;
         }
 
-        private double DrawEntryContent(XGraphics graphics, PdfLayout layout, JournalEntry entry, double yPosition, PdfDocument document, PdfPage page)
+        private double DrawEntryContent(PdfGenerationContext context, JournalEntry entry)
         {
-            var contentLines = WordWrap(entry.Content, layout.NormalFont, layout.ContentWidth, graphics);
+            var layout = context.Layout;
+            var contentLines = WordWrap(entry.Content, layout.NormalFont, layout.ContentWidth - 20, context.Graphics);
+            
             foreach (var line in contentLines)
             {
-                if (yPosition > layout.PageBottomThreshold)
+                // Check if we need a new page for this line
+                context.EnsureSpace(20);
+                
+                if (string.IsNullOrEmpty(line))
                 {
-                    DrawFooter(graphics, document.PageCount, layout);
-                    graphics.Dispose();
-                    page = document.AddPage();
-                    graphics = XGraphics.FromPdfPage(page);
-                    yPosition = layout.TopMargin;
+                    context.YPosition += 10;
+                    continue;
                 }
-                graphics.DrawString(line, layout.NormalFont, layout.TextBrush, layout.LeftMargin, yPosition);
-                yPosition += 15;
+                context.Graphics.DrawString(line, layout.NormalFont, layout.TextBrush, layout.LeftMargin + 10, context.YPosition);
+                context.YPosition += 15;
             }
-            return yPosition;
+            return context.YPosition;
         }
 
-        private double DrawEntryMoods(XGraphics graphics, PdfLayout layout, JournalEntry entry, double yPosition)
+        private double DrawEntryMoods(PdfGenerationContext context, JournalEntry entry)
         {
-            if (!entry.JournalEntryMoods.Any())
-                return yPosition;
+            if (entry.JournalEntryMoods == null || !entry.JournalEntryMoods.Any())
+                return context.YPosition;
 
-            yPosition += 5;
+            context.EnsureSpace(40);
+            var layout = context.Layout;
+            var yPos = context.YPosition + 5;
+
             var moods = entry.JournalEntryMoods.ToList();
             var primary = moods.FirstOrDefault(m => m.IsPrimary);
-            if (primary == null)
-                return yPosition;
+            
+            context.Graphics.DrawString("Moods: ", layout.DateFont, layout.GrayBrush, layout.LeftMargin + 10, yPos);
+            var labelSize = context.Graphics.MeasureString("Moods: ", layout.DateFont);
+            var xPos = layout.LeftMargin + 10 + labelSize.Width;
 
-            var moodText = $"{primary.Mood.Icon} {primary.Mood.Name} (Primary)";
-            graphics.DrawString("Moods: ", layout.DateFont, layout.GrayBrush, layout.LeftMargin, yPosition);
-            var labelSize = graphics.MeasureString("Moods: ", layout.DateFont);
-            graphics.DrawString(moodText, layout.DateFont, layout.GrayBrush, layout.LeftMargin + labelSize.Width, yPosition);
-            yPosition += 15;
-
-            var secondary = moods.Where(m => !m.IsPrimary);
-            if (secondary.Any())
+            if (primary != null)
             {
-                var secText = string.Join(", ", secondary.Select(m => $"{m.Mood.Icon} {m.Mood.Name}"));
-                graphics.DrawString(secText, layout.DateFont, layout.GrayBrush, layout.LeftMargin + labelSize.Width, yPosition);
-                yPosition += 15;
+                // Use mood name only if icons are causing issues
+                var moodText = primary.Mood.Name;
+                var moodColor = ParseColor(primary.Mood.Color);
+                context.Graphics.DrawString(moodText, layout.DateFont, new XSolidBrush(moodColor), xPos, yPos);
+                xPos += context.Graphics.MeasureString(moodText, layout.DateFont).Width + 10;
             }
 
-            return yPosition;
+            var secondary = moods.Where(m => !m.IsPrimary).ToList();
+            if (secondary.Any())
+            {
+                foreach (var m in secondary)
+                {
+                    var moodText = m.Mood.Name;
+                    var moodColor = ParseColor(m.Mood.Color);
+                    context.Graphics.DrawString(moodText, layout.DateFont, new XSolidBrush(moodColor), xPos, yPos);
+                    xPos += context.Graphics.MeasureString(moodText, layout.DateFont).Width + 8;
+                }
+            }
+
+            return yPos + 20;
         }
 
         private class PdfLayout
         {
-            public PdfLayout(XGraphics graphics)
+            public PdfLayout()
             {
-                TitleFont = new XFont("Arial", 20, XFontStyle.Bold);
-                HeaderFont = new XFont("Arial", 14, XFontStyle.Bold);
-                DateFont = new XFont("Arial", 10, XFontStyle.Italic);
-                NormalFont = new XFont("Arial", 11, XFontStyle.Regular);
+                // Use standard fonts as fallback for emojis if possible, 
+                // but PdfSharpCore needs specific font loading for symbols.
+                TitleFont = new XFont("Arial", 24, XFontStyle.Bold);
+                HeaderFont = new XFont("Arial", 16, XFontStyle.Bold);
+                DateFont = new XFont("Arial", 10, XFontStyle.Regular);
+                NormalFont = new XFont("Arial", 12, XFontStyle.Regular);
                 FooterFont = new XFont("Arial", 9, XFontStyle.Italic);
 
-                TitleBrush = XBrushes.DarkBlue;
+                TitleBrush = new XSolidBrush(XColor.FromArgb(255, 30, 58, 138)); // Dark Blue
                 TextBrush = XBrushes.Black;
-                GrayBrush = XBrushes.Gray;
+                GrayBrush = new XSolidBrush(XColor.FromArgb(255, 75, 85, 99)); // Cool Gray
             }
 
-            public double LeftMargin { get; } = 50.0;
-            public double RightMargin { get; } = 50.0;
+            public double LeftMargin { get; } = 40.0;
+            public double RightMargin { get; } = 40.0;
             public double PageWidth { get; } = 595.0;
             public double PageHeight { get; } = 842.0;
-            public double TopMargin { get; } = 50.0;
-            public double PageBottomThreshold { get; } = 750.0;
+            public double TopMargin { get; } = 40.0;
+            public double PageBottomThreshold { get; } = 780.0;
             public double ContentWidth => PageWidth - LeftMargin - RightMargin;
 
             public XFont TitleFont { get; }
@@ -331,20 +519,24 @@ namespace MindLog.Services
 
         private void DrawFooter(XGraphics graphics, int pageNumber, PdfLayout layout)
         {
-            var footerText = $"Page {pageNumber}";
-            var footerFont = new XFont("Arial", 9, XFontStyle.Italic);
-            var footerSize = graphics.MeasureString(footerText, footerFont);
-            graphics.DrawString(footerText, footerFont, XBrushes.Gray,
-                layout.PageWidth - layout.RightMargin - footerSize.Width, layout.PageHeight - 30);
+            // This is now handled in PdfGenerationContext
         }
 
         private List<string> WordWrap(string text, XFont font, double maxWidth, XGraphics graphics)
         {
+            if (string.IsNullOrEmpty(text)) return new List<string>();
+            
             var lines = new List<string>();
-            var paragraphs = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+            var paragraphs = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
 
             foreach (var paragraph in paragraphs)
             {
+                if (string.IsNullOrWhiteSpace(paragraph))
+                {
+                    lines.Add("");
+                    continue;
+                }
+
                 var words = paragraph.Split(' ');
                 var currentLine = "";
 
@@ -360,7 +552,9 @@ namespace MindLog.Services
                         }
                         else
                         {
+                            // Single word is too long, force split it
                             lines.Add(word);
+                            currentLine = "";
                         }
                     }
                     else
@@ -371,8 +565,6 @@ namespace MindLog.Services
 
                 if (!string.IsNullOrEmpty(currentLine))
                     lines.Add(currentLine);
-
-                lines.Add(""); // paragraph spacing
             }
 
             return lines;
@@ -381,12 +573,13 @@ namespace MindLog.Services
         private string GenerateFileName(DateOnly? startDate, DateOnly? endDate)
         {
             var baseName = "MindLog_Journal_Export";
+            var timestamp = DateTime.Now.ToString("HHmmss");
             return (startDate, endDate) switch
             {
-                (not null, not null) => $"{baseName}_{startDate:yyyyMMdd}_{endDate:yyyyMMdd}.pdf",
-                (not null, null) => $"{baseName}_from_{startDate:yyyyMMdd}.pdf",
-                (null, not null) => $"{baseName}_until_{endDate:yyyyMMdd}.pdf",
-                _ => $"{baseName}_{DateTime.Now:yyyyMMdd}.pdf"
+                (not null, not null) => $"{baseName}_{startDate:yyyyMMdd}_{endDate:yyyyMMdd}_{timestamp}.pdf",
+                (not null, null) => $"{baseName}_from_{startDate:yyyyMMdd}_{timestamp}.pdf",
+                (null, not null) => $"{baseName}_until_{endDate:yyyyMMdd}_{timestamp}.pdf",
+                _ => $"{baseName}_{DateTime.Now:yyyyMMdd}_{timestamp}.pdf"
             };
         }
     }
@@ -454,7 +647,7 @@ namespace MindLog.Services
                 return GetFallbackFont();
             }
         }
-
+wip
         private byte[] GetFallbackFont()
         {
             _logger.LogDebug("Using fallback font (Arial)");
