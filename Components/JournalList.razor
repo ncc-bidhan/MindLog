@@ -288,7 +288,7 @@
                             // FIX: Create a local variable to capture the CURRENT value of i
                             int pageNumber = i; 
 
-                            @if (i == 1 || i == paginatedEntries.TotalPages || (i >= currentPage - 1 && i <= currentPage + 1))
+                            @if (i == 1 || i == paginatedEntries.TotalPages || Math.Abs(i - currentPage) <= 2)
                             {
                                 <button type="button" 
                                         class="pagination-number @(pageNumber == currentPage ? "active" : "")" 
@@ -297,7 +297,7 @@
                                     @pageNumber
                                 </button>
                             }
-                            else if (i == currentPage - 2 || i == currentPage + 2)
+                            else if (i == currentPage - 3 || i == currentPage + 3)
                             {
                                 <span class="pagination-ellipsis">...</span>
                             }
