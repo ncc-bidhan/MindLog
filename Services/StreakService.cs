@@ -222,13 +222,12 @@ namespace MindLog.Services
             }
             longestStreak = Math.Max(longestStreak, tempStreak);
 
-            // Calculate missed days since first entry
+            // Calculate missed days (days since last entry)
             int missedDays = 0;
             if (sortedDates.Any())
             {
-                var firstEntry = sortedDates.First();
-                var daysSinceFirstEntry = today.DayNumber - firstEntry.DayNumber + 1;
-                missedDays = Math.Max(0, daysSinceFirstEntry - sortedDates.Count);
+                var lastEntry = sortedDates.Last();
+                missedDays = Math.Max(0, today.DayNumber - lastEntry.DayNumber);
             }
 
             return (currentStreak, longestStreak, missedDays, streakStartDate);
