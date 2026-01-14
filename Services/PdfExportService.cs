@@ -8,6 +8,7 @@ using MindLog.Interfaces;
 using MindLog.Helpers;
 using MindLog.Models;
 using Microsoft.Maui.Storage;
+using CommunityToolkit.Maui.Storage;
 
 namespace MindLog.Services
 {
@@ -84,67 +85,39 @@ namespace MindLog.Services
                     throw new Exception("Generated PDF data is empty");
                 }
 
-                var cacheDir = FileSystem.Current.CacheDirectory;
-                
-                // Cleanup old export files to save space
-                CleanupOldExports(cacheDir);
+                using var stream = new MemoryStream(pdfBytes);
+                var fileSaverResult = await FileSaver.Default.SaveAsync(fileName, stream);
 
-                var fullPath = Path.Combine(cacheDir, fileName);
-                
-                var directory = Path.GetDirectoryName(fullPath);
-                if (!Directory.Exists(directory))
+                if (fileSaverResult.IsSuccessful)
                 {
-                    Directory.CreateDirectory(directory);
+                    _logger.LogInformation("PDF saved successfully to: {FilePath}", fileSaverResult.FilePath);
+                    
+                    try
+                    {
+                        await Launcher.Default.OpenAsync(new OpenFileRequest
+                        {
+                            File = new ReadOnlyFile(fileSaverResult.FilePath)
+                        });
+                        _logger.LogInformation("Launcher opened PDF successfully: {FilePath}", fileSaverResult.FilePath);
+                    }
+                    catch (Exception launchEx)
+                    {
+                        _logger.LogWarning(launchEx, "Failed to open PDF with Launcher: {FilePath}", fileSaverResult.FilePath);
+                    }
                 }
-                
-                await File.WriteAllBytesAsync(fullPath, pdfBytes);
-                
-                _logger.LogInformation("PDF saved successfully to: {FullPath}", fullPath);
-                
-                try
+                else
                 {
-                    await Launcher.Default.OpenAsync(fullPath);
-                    _logger.LogInformation("Launcher opened PDF successfully: {FullPath}", fullPath);
-                }
-                catch (Exception launchEx)
-                {
-                    _logger.LogWarning(launchEx, "Failed to open PDF with Launcher: {FullPath}", fullPath);
+                    if (fileSaverResult.Exception != null)
+                    {
+                        throw fileSaverResult.Exception;
+                    }
+                    _logger.LogWarning("File save was cancelled or failed.");
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in ExportAndSaveJournalsAsync for UserId: {UserId}", userId);
                 throw;
-            }
-        }
-
-        private void CleanupOldExports(string cacheDir)
-        {
-            try
-            {
-                var directory = new DirectoryInfo(cacheDir);
-                if (!directory.Exists) return;
-
-                var oldFiles = directory.GetFiles("MindLog_Journal_Export_*.pdf")
-                    .Where(f => f.LastWriteTime < DateTime.Now.AddHours(-1))
-                    .ToList();
-
-                foreach (var file in oldFiles)
-                {
-                    try
-                    {
-                        file.Delete();
-                        _logger.LogInformation("Deleted old export file: {FileName}", file.Name);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Could not delete old export file: {FileName}", file.Name);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Error cleaning up old export files");
             }
         }
 

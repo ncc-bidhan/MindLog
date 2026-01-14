@@ -2,6 +2,8 @@
 @inject AuthStateService AuthStateService
 @inject NavigationManager NavigationManager
 @inject ThemeService ThemeService
+@inject IAuthService AuthService
+@inject ToastService ToastService
 
 @implements IDisposable
 
@@ -37,7 +39,6 @@ else
                                 <span class="theme-label">Dark</span>
                             </button>
                         </div>
-                        <button class="debug-button" @onclick="DebugTheme">Debug Theme</button>
                     </div>
                 </div>
             </div>
@@ -58,11 +59,44 @@ else
                     </div>
                 </div>
             </div>
+
+            <!-- Security Section -->
+            <div class="settings-section">
+                <h2 class="section-title">Security</h2>
+                
+                <div class="setting-item">
+                    <div class="setting-info w-100">
+                        <h3 class="setting-label">Change Password</h3>
+                        <div class="password-form">
+                            <div class="form-group">
+                                <label>Current Password</label>
+                                <input type="password" @bind="currentPassword" class="form-input" placeholder="Enter current password" />
+                            </div>
+                            <div class="form-group">
+                                <label>New Password</label>
+                                <input type="password" @bind="newPassword" class="form-input" placeholder="Enter new password" />
+                            </div>
+                            <div class="form-group">
+                                <label>Confirm New Password</label>
+                                <input type="password" @bind="confirmPassword" class="form-input" placeholder="Confirm new password" />
+                            </div>
+                            <button class="change-password-btn" @onclick="ChangePassword" disabled="@isChangingPassword">
+                                @(isChangingPassword ? "Updating..." : "Update Password")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 }
 
 @code {
+    private string currentPassword = "";
+    private string newPassword = "";
+    private string confirmPassword = "";
+    private bool isChangingPassword = false;
+
     protected override async Task OnInitializedAsync()
     {
         if (AuthStateService.IsAuthenticated)
@@ -79,14 +113,44 @@ else
 
     private async Task SetTheme(bool isDark)
     {
-        Console.WriteLine($"SetTheme called with isDark: {isDark}");
         await ThemeService.SetThemeAsync(isDark);
-        Console.WriteLine($"SetTheme completed. Current theme: {ThemeService.IsDarkMode}");
     }
 
-    private void DebugTheme()
+    private async Task ChangePassword()
     {
-        Console.WriteLine($"Debug info: IsDarkMode={ThemeService.IsDarkMode}");
+        if (string.IsNullOrWhiteSpace(currentPassword) || string.IsNullOrWhiteSpace(newPassword) || string.IsNullOrWhiteSpace(confirmPassword))
+        {
+            ToastService.ShowError("Validation Error", "All password fields are required.");
+            return;
+        }
+
+        if (newPassword != confirmPassword)
+        {
+            ToastService.ShowError("Validation Error", "New passwords do not match.");
+            return;
+        }
+
+        if (AuthStateService.CurrentUser == null) return;
+
+        isChangingPassword = true;
+        try
+        {
+            await AuthService.ChangePasswordAsync(AuthStateService.CurrentUser.Id, currentPassword, newPassword);
+            ToastService.ShowSuccess("Success", "Password updated successfully.");
+            
+            // Clear fields
+            currentPassword = "";
+            newPassword = "";
+            confirmPassword = "";
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Error", ex.Message);
+        }
+        finally
+        {
+            isChangingPassword = false;
+        }
     }
 
     public void Dispose()

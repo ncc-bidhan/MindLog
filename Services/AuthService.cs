@@ -99,5 +99,47 @@ namespace MindLog.Services
                 throw new AuthenticationException("An error occurred during login. Please try again.");
             }
         }
+        public async Task<bool> ChangePasswordAsync(int userId, string currentPassword, string newPassword)
+        {
+            try
+            {
+                ValidationHelper.ValidateRequired(currentPassword, "Current Password");
+                ValidationHelper.ValidatePassword(newPassword, Constants.Validation.MinPasswordLength);
+
+                await using var context = _contextFactory.CreateDbContext();
+                var user = await context.Users.FindAsync(userId);
+
+                if (user == null)
+                {
+                    _logger.LogWarning("Change password attempt for non-existent user ID: {UserId}", userId);
+                    return false;
+                }
+
+                if (user.Password != currentPassword)
+                {
+                    _logger.LogWarning("Invalid current password for user ID: {UserId}", userId);
+                    throw new AuthenticationException("The current password is incorrect.");
+                }
+
+                user.Password = newPassword;
+                await context.SaveChangesAsync();
+
+                _logger.LogInformation("Password changed successfully for user ID: {UserId}", userId);
+                return true;
+            }
+            catch (ValidationException)
+            {
+                throw;
+            }
+            catch (AuthenticationException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error changing password for user ID: {UserId}", userId);
+                throw new Exception("An error occurred while changing the password.");
+            }
+        }
     }
 }
