@@ -647,7 +647,6 @@ namespace MindLog.Services
                 return GetFallbackFont();
             }
         }
-wip
         private byte[] GetFallbackFont()
         {
             _logger.LogDebug("Using fallback font (Arial)");
