@@ -127,8 +127,8 @@
   --text-primary-rgb: 249, 250, 251;
   --text-secondary: #e5e7eb;
   --text-tertiary: #9ca3af;
-  --border-primary: #374151;
-  --border-secondary: #4b5563;
+  --border-primary: #4b5563;
+  --border-secondary: #6b7280;
   --card-bg: #374151;
   --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3),
     0 2px 4px -1px rgba(0, 0, 0, 0.2);
