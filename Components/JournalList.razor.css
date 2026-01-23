@@ -172,12 +172,14 @@
 
 .search-filters-section {
   background: var(--card-bg);
-  backdrop-filter: blur(10px);
+  /* Removed backdrop-filter to prevent native date picker positioning issues on some browsers */
   border: 1px solid var(--border-primary);
   border-radius: 1rem;
   padding: 1.5rem;
   margin: 0 1rem 1.5rem 1rem;
   box-shadow: var(--card-shadow);
+  position: relative;
+  z-index: 10;
 }
 
 .search-filters-header {
@@ -236,6 +238,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  position: relative;
 }
 
 .date-input-wrapper label {
@@ -253,6 +256,10 @@
   font-size: 0.875rem;
   font-weight: 500;
   transition: all 0.3s ease;
+  width: 100%;
+  position: relative;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .date-input:focus {
@@ -726,6 +733,12 @@
 }
 
 /* Responsive Design */
+@media (max-width: 850px) {
+  .date-range-container {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 640px) {
   .journal-header {
     margin: 0.75rem;
@@ -748,6 +761,16 @@
 
   .search-results-info {
     margin: 0 0.75rem 1rem 0.75rem;
+  }
+
+  .search-btn,
+  .clear-search-btn {
+    width: 100%;
+  }
+
+  .active-filters-summary {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .journal-grid {
@@ -834,6 +857,14 @@
 }
 
 @media (min-width: 1024px) {
+  .advanced-filters {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .filter-group:last-child {
+    grid-column: span 2;
+  }
+
   .journal-list-container {
     width: calc(100vw - 320px);
     left: 320px;
