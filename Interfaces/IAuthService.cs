@@ -4,8 +4,9 @@ namespace MindLog.Interfaces
 {
     public interface IAuthService
     {
-        Task<User> RegisterAsync(string username, string email, string password);
-        Task<User> LoginAsync(string username, string password);
-        Task<bool> ChangePasswordAsync(int userId, string currentPassword, string newPassword);
+        Task<User> RegisterAsync(string username, string email, string pin);
+        Task<User> LoginWithPinAsync(string pin);
+        Task<bool> ChangePinAsync(int userId, string currentPin, string newPin);
+        Task<bool> HasAnyUsersAsync();
     }
 }

@@ -48,6 +48,15 @@ namespace MindLog.Helpers
             }
         }
 
+        public static void ValidatePin(string pin)
+        {
+            ValidateRequired(pin, "PIN");
+            if (!Regex.IsMatch(pin, @"^\d{4,6}$"))
+            {
+                throw new ValidationException("PIN must be 4-6 digits long and contain only numbers.");
+            }
+        }
+
         public static void ValidateStringLength(string value, string fieldName, int minLength, int maxLength)
         {
             ValidateRequired(value, fieldName);

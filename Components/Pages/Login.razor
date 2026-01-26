@@ -21,14 +21,9 @@
         }
 
         <EditForm class="auth-form" Model="@this" OnSubmit="HandleLogin">
-            <div class="mb-3">
-                <label class="form-label">Username</label>
-                <input class="form-control" @bind="Username" placeholder="Enter your username" required />
-            </div>
-
             <div class="mb-4">
-                <label class="form-label">Password</label>
-                <input class="form-control" type="password" @bind="Password" placeholder="Enter your password" required />
+                <label class="form-label">Enter PIN</label>
+                <input class="form-control" type="password" @bind="Pin" placeholder="Enter your 4-6 digit PIN" required maxlength="6" pattern="[0-9]*" inputmode="numeric" />
             </div>
 
             <button class="btn auth-btn" type="submit" disabled="@_isLoading">
@@ -44,22 +39,27 @@
             </button>
         </EditForm>
 
-        <div class="auth-links">
-            <p>Don't have an account? <a href="/register">Create Account</a></p>
-        </div>
+
     </div>
 
 @code {
-    private string Username = "";
-    private string Password = "";
+    private string Pin = "";
     private string? _errorMessage;
     private bool _isLoading = false;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         if (AuthStateService.IsAuthenticated)
         {
             NavigationManager.NavigateTo("/");
+            return;
+        }
+
+        // Check if this is first-time setup (no users exist)
+        var hasUsers = await AuthService.HasAnyUsersAsync();
+        if (!hasUsers)
+        {
+            NavigationManager.NavigateTo("/setup-pin");
             return;
         }
     }
@@ -71,7 +71,7 @@
 
         try
         {
-            var user = await AuthService.LoginAsync(Username, Password);
+            var user = await AuthService.LoginWithPinAsync(Pin);
             AuthStateService.SetUser(user);
             NavigationManager.NavigateTo("/");
         }

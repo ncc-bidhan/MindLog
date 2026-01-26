@@ -66,22 +66,22 @@ else
                 
                 <div class="setting-item">
                     <div class="setting-info w-100">
-                        <h3 class="setting-label">Change Password</h3>
+                        <h3 class="setting-label">Change PIN</h3>
                         <div class="password-form">
                             <div class="form-group">
-                                <label>Current Password</label>
-                                <input type="password" @bind="currentPassword" class="form-input" placeholder="Enter current password" />
+                                <label>Current PIN</label>
+                                <input type="password" @bind="currentPin" class="form-input" placeholder="Enter current PIN" maxlength="6" pattern="[0-9]*" inputmode="numeric" />
                             </div>
                             <div class="form-group">
-                                <label>New Password</label>
-                                <input type="password" @bind="newPassword" class="form-input" placeholder="Enter new password" />
+                                <label>New PIN</label>
+                                <input type="password" @bind="newPin" class="form-input" placeholder="Enter new PIN (4-6 digits)" maxlength="6" pattern="[0-9]*" inputmode="numeric" />
                             </div>
                             <div class="form-group">
-                                <label>Confirm New Password</label>
-                                <input type="password" @bind="confirmPassword" class="form-input" placeholder="Confirm new password" />
+                                <label>Confirm New PIN</label>
+                                <input type="password" @bind="confirmPin" class="form-input" placeholder="Confirm new PIN" maxlength="6" pattern="[0-9]*" inputmode="numeric" />
                             </div>
-                            <button class="change-password-btn" @onclick="ChangePassword" disabled="@isChangingPassword">
-                                @(isChangingPassword ? "Updating..." : "Update Password")
+                            <button class="change-password-btn" @onclick="ChangePin" disabled="@isChangingPin">
+                                @(isChangingPin ? "Updating..." : "Update PIN")
                             </button>
                         </div>
                     </div>
@@ -92,10 +92,10 @@ else
 }
 
 @code {
-    private string currentPassword = "";
-    private string newPassword = "";
-    private string confirmPassword = "";
-    private bool isChangingPassword = false;
+    private string currentPin = "";
+    private string newPin = "";
+    private string confirmPin = "";
+    private bool isChangingPin = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -116,32 +116,32 @@ else
         await ThemeService.SetThemeAsync(isDark);
     }
 
-    private async Task ChangePassword()
+    private async Task ChangePin()
     {
-        if (string.IsNullOrWhiteSpace(currentPassword) || string.IsNullOrWhiteSpace(newPassword) || string.IsNullOrWhiteSpace(confirmPassword))
+        if (string.IsNullOrWhiteSpace(currentPin) || string.IsNullOrWhiteSpace(newPin) || string.IsNullOrWhiteSpace(confirmPin))
         {
-            ToastService.ShowError("Validation Error", "All password fields are required.");
+            ToastService.ShowError("Validation Error", "All PIN fields are required.");
             return;
         }
 
-        if (newPassword != confirmPassword)
+        if (newPin != confirmPin)
         {
-            ToastService.ShowError("Validation Error", "New passwords do not match.");
+            ToastService.ShowError("Validation Error", "New PINs do not match.");
             return;
         }
 
         if (AuthStateService.CurrentUser == null) return;
 
-        isChangingPassword = true;
+        isChangingPin = true;
         try
         {
-            await AuthService.ChangePasswordAsync(AuthStateService.CurrentUser.Id, currentPassword, newPassword);
-            ToastService.ShowSuccess("Success", "Password updated successfully.");
+            await AuthService.ChangePinAsync(AuthStateService.CurrentUser.Id, currentPin, newPin);
+            ToastService.ShowSuccess("Success", "PIN updated successfully.");
             
             // Clear fields
-            currentPassword = "";
-            newPassword = "";
-            confirmPassword = "";
+            currentPin = "";
+            newPin = "";
+            confirmPin = "";
         }
         catch (Exception ex)
         {
@@ -149,7 +149,7 @@ else
         }
         finally
         {
-            isChangingPassword = false;
+            isChangingPin = false;
         }
     }
 

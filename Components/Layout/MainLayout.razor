@@ -64,7 +64,7 @@
     private void UpdateSidebarVisibility()
     {
         var currentPath = NavigationManager.ToAbsoluteUri(NavigationManager.Uri).AbsolutePath;
-        ShouldShowSidebar = currentPath != "/login" && currentPath != "/register";
+        ShouldShowSidebar = currentPath != "/login" && currentPath != "/setup-pin";
     }
 
     private void HandleToast(bool show, string type, string title, string message)

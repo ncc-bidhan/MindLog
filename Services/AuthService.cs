@@ -19,13 +19,13 @@ namespace MindLog.Services
             _logger = Logger.GetLogger<AuthService>();
         }
 
-        public async Task<User> RegisterAsync(string username, string email, string password)
+        public async Task<User> RegisterAsync(string username, string email, string pin)
         {
             try
             {
                 ValidationHelper.ValidateUsername(username);
                 ValidationHelper.ValidateEmail(email);
-                ValidationHelper.ValidatePassword(password, Constants.Validation.MinPasswordLength);
+                ValidationHelper.ValidatePin(pin);
 
                 await using var context = _contextFactory.CreateDbContext();
 
@@ -45,7 +45,7 @@ namespace MindLog.Services
                 {
                     Username = username,
                     Email = email,
-                    Password = password
+                    Pin = pin
                 };
 
                 context.Users.Add(user);
@@ -65,24 +65,24 @@ namespace MindLog.Services
             }
         }
 
-        public async Task<User> LoginAsync(string username, string password)
+        public async Task<User> LoginWithPinAsync(string pin)
         {
             try
             {
-                ValidationHelper.ValidateRequired(username, "Username");
-                ValidationHelper.ValidateRequired(password, "Password");
+                ValidationHelper.ValidateRequired(pin, "PIN");
+                ValidationHelper.ValidatePin(pin);
 
                 await using var context = _contextFactory.CreateDbContext();
                 var user = await context.Users
-                    .FirstOrDefaultAsync(u => u.Username == username && u.Password == password);
+                    .FirstOrDefaultAsync(u => u.Pin == pin);
 
                 if (user == null)
                 {
-                    _logger.LogWarning("Failed login attempt for username: {Username}", username);
-                    throw new AuthenticationException("Invalid username or password.");
+                    _logger.LogWarning("Failed login attempt with PIN");
+                    throw new AuthenticationException("Invalid PIN.");
                 }
 
-                _logger.LogInformation("User logged in successfully: {Username}", username);
+                _logger.LogInformation("User logged in successfully with PIN");
                 return user;
             }
             catch (ValidationException)
@@ -95,16 +95,16 @@ namespace MindLog.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during user login: {Username}", username);
+                _logger.LogError(ex, "Error during user login with PIN");
                 throw new AuthenticationException("An error occurred during login. Please try again.");
             }
         }
-        public async Task<bool> ChangePasswordAsync(int userId, string currentPassword, string newPassword)
+        public async Task<bool> ChangePinAsync(int userId, string currentPin, string newPin)
         {
             try
             {
-                ValidationHelper.ValidateRequired(currentPassword, "Current Password");
-                ValidationHelper.ValidatePassword(newPassword, Constants.Validation.MinPasswordLength);
+                ValidationHelper.ValidateRequired(currentPin, "Current PIN");
+                ValidationHelper.ValidatePin(newPin);
 
                 await using var context = _contextFactory.CreateDbContext();
                 var user = await context.Users.FindAsync(userId);
@@ -115,16 +115,16 @@ namespace MindLog.Services
                     return false;
                 }
 
-                if (user.Password != currentPassword)
+                if (user.Pin != currentPin)
                 {
-                    _logger.LogWarning("Invalid current password for user ID: {UserId}", userId);
-                    throw new AuthenticationException("The current password is incorrect.");
+                    _logger.LogWarning("Invalid current PIN for user ID: {UserId}", userId);
+                    throw new AuthenticationException("The current PIN is incorrect.");
                 }
 
-                user.Password = newPassword;
+                user.Pin = newPin;
                 await context.SaveChangesAsync();
 
-                _logger.LogInformation("Password changed successfully for user ID: {UserId}", userId);
+                _logger.LogInformation("PIN changed successfully for user ID: {UserId}", userId);
                 return true;
             }
             catch (ValidationException)
@@ -137,8 +137,22 @@ namespace MindLog.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error changing password for user ID: {UserId}", userId);
-                throw new Exception("An error occurred while changing the password.");
+                _logger.LogError(ex, "Error changing PIN for user ID: {UserId}", userId);
+                throw new Exception("An error occurred while changing the PIN.");
+            }
+        }
+
+        public async Task<bool> HasAnyUsersAsync()
+        {
+            try
+            {
+                await using var context = _contextFactory.CreateDbContext();
+                return await context.Users.AnyAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking if any users exist");
+                return false;
             }
         }
     }

@@ -1,4 +1,4 @@
-@page "/register"
+@page "/setup-pin"
 @using MindLog.Services
 @inject NavigationManager NavigationManager
 @inject AuthService AuthService
@@ -7,7 +7,7 @@
     <div class="auth-card">
         <div class="auth-logo">
             <h1>MindLog</h1>
-            <p>Create your account and start journaling</p>
+            <p>Set up your PIN to secure your journal</p>
         </div>
 
         @if (!string.IsNullOrEmpty(_errorMessage))
@@ -30,64 +30,56 @@
             </div>
         }
 
-        <EditForm class="auth-form" Model="@this" OnSubmit="HandleRegister">
-            <div class="mb-3">
-                <label class="form-label">Username</label>
-                <input class="form-control" @bind="Username" placeholder="Choose a username" required />
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Email</label>
-                <input class="form-control" type="email" @bind="Email" placeholder="Enter your email" required />
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Password</label>
-                <input class="form-control" type="password" @bind="Password" placeholder="Create a password" required />
+        <EditForm class="auth-form" Model="@this" OnSubmit="HandlePinSetup">
+            <div class="mb-4">
+                <label class="form-label">Create PIN</label>
+                <input class="form-control" type="password" @bind="Pin" placeholder="Create a PIN (4-6 digits)" required maxlength="6" pattern="[0-9]*" inputmode="numeric" />
             </div>
 
             <div class="mb-4">
-                <label class="form-label">Confirm Password</label>
-                <input class="form-control" type="password" @bind="ConfirmPassword" placeholder="Confirm your password" required />
+                <label class="form-label">Confirm PIN</label>
+                <input class="form-control" type="password" @bind="ConfirmPin" placeholder="Confirm your PIN" required maxlength="6" pattern="[0-9]*" inputmode="numeric" />
             </div>
 
             <button class="btn auth-btn" type="submit" disabled="@_isLoading">
                 @if (_isLoading)
                 {
                     <div class="auth-spinner"></div>
-                    <span>Creating Account...</span>
+                    <span>Setting up...</span>
                 }
                 else
                 {
-                    <span>Create Account</span>
+                    <span>Set Up PIN</span>
                 }
             </button>
         </EditForm>
 
-        <div class="auth-links">
-            <p>Already have an account? <a href="/login">Sign In</a></p>
-        </div>
+
     </div>
 
 @code {
-    private string Username = "";
-    private string Email = "";
-    private string Password = "";
-    private string ConfirmPassword = "";
+    private string Pin = "";
+    private string ConfirmPin = "";
     private string? _errorMessage;
     private string? _successMessage;
     private bool _isLoading = false;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         if (AuthStateService.IsAuthenticated)
         {
             NavigationManager.NavigateTo("/");
             return;
         }
+
+        var hasUsers = await AuthService.HasAnyUsersAsync();
+        if (hasUsers)
+        {
+            NavigationManager.NavigateTo("/login");
+        }
     }
 
-    private async Task HandleRegister()
+    private async Task HandlePinSetup()
     {
         _errorMessage = null;
         _successMessage = null;
@@ -95,17 +87,19 @@
 
         try
         {
-            if (Password != ConfirmPassword)
+            if (Pin != ConfirmPin)
             {
-                _errorMessage = "Passwords do not match";
+                _errorMessage = "PINs do not match";
                 return;
             }
 
-            await AuthService.RegisterAsync(Username, Email, Password);
-            _successMessage = "Registration successful! Redirecting to login...";
+            // For first-time setup, create a default user with the PIN
+            var user = await AuthService.RegisterAsync("User", "user@mindlog.local", Pin);
+            AuthStateService.SetUser(user);
+            _successMessage = "PIN setup successful! Redirecting to your journal...";
             
             await Task.Delay(2000);
-            NavigationManager.NavigateTo("/login");
+            NavigationManager.NavigateTo("/");
         }
         catch (Exception ex)
         {

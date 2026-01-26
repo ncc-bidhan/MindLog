@@ -1,3 +1,7 @@
+@inject AuthService AuthService
+@inject AuthStateService AuthStateService
+@inject NavigationManager NavigationManager
+
 <Router AppAssembly="@typeof(MauiProgram).Assembly">
     <Found Context="routeData">
         <RouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)"/>
@@ -15,3 +19,35 @@
         </LayoutView>
     </NotFound>
 </Router>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthStateService.IsAuthenticated)
+        {
+            return;
+        }
+
+        var currentPath = NavigationManager.ToAbsoluteUri(NavigationManager.Uri).AbsolutePath;
+        var hasUsers = await AuthService.HasAnyUsersAsync();
+        if (!hasUsers)
+        {
+            if (currentPath != "/setup-pin")
+            {
+                NavigationManager.NavigateTo("/setup-pin");
+            }
+            return;
+        }
+
+        if (currentPath == "/setup-pin")
+        {
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+
+        if (currentPath != "/login")
+        {
+            NavigationManager.NavigateTo("/login");
+        }
+    }
+}

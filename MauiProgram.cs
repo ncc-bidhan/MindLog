@@ -65,11 +65,17 @@ public static class MauiProgram
         try
         {
             var databaseService = app.Services.GetRequiredService<IDatabaseService>();
+            var resetKey = "mindlog_reset_db_once";
+            var shouldReset = Preferences.Get(resetKey, true);
+            if (shouldReset)
+            {
+                databaseService.ResetDatabaseAsync().GetAwaiter().GetResult();
+                Preferences.Set(resetKey, false);
+            }
             databaseService.InitializeDatabaseAsync().GetAwaiter().GetResult();
         }
         catch (Exception ex)
         {
-            // Log the error but don't crash the app
             var logger = app.Services.GetRequiredService<ILogger<App>>();
             logger.LogError(ex, "Failed to initialize database during startup");
         }

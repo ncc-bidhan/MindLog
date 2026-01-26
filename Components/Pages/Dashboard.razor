@@ -2,6 +2,7 @@
 @page "/dashboard"
 @inject IAnalyticsService AnalyticsService
 @inject AuthStateService AuthStateService
+@inject AuthService AuthService
 @inject NavigationManager NavigationManager
 
 <PageTitle>Insights | MindLog</PageTitle>
@@ -16,17 +17,9 @@
 </div>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 mb-12">
-    @if (AuthStateService.CurrentUser == null)
+    @if (!AuthStateService.IsAuthenticated)
     {
-        <div class="d-flex flex-column align-center justify-center mt-16 py-12 glass-card rounded-xl login-card">
-            <div class="icon-circle mb-4">
-                <img src="images/appicon.png" alt="MindLog" style="width: 80px; height: 80px; object-fit: contain;" />
-            </div>
-            <MudText Typo="Typo.h4" Class="fw-bold mt-4">Dashboard Locked</MudText>
-            <MudText Typo="Typo.body1" Color="Color.Secondary">Please log in to view your mental landscape.</MudText>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-6 px-10 py-3 rounded-pill btn-primary-gradient" 
-                       OnClick='() => NavigationManager.NavigateTo("/login")'>Sign In</MudButton>
-        </div>
+        return;
     }
     else if (loading)
     {
@@ -245,13 +238,10 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (AuthStateService.CurrentUser?.Id == null)
+        if (!AuthStateService.IsAuthenticated)
         {
-            if (!AuthStateService.IsAuthenticated)
-            {
-                NavigationManager.NavigateTo("/login");
-            }
-            loading = false;
+            var hasUsers = await AuthService.HasAnyUsersAsync();
+            NavigationManager.NavigateTo(hasUsers ? "/login" : "/setup-pin");
             return;
         }
         await LoadAnalyticsData();
